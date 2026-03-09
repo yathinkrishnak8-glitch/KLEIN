@@ -1,10 +1,15 @@
-# --- AUDIOOP PATCH FOR PYTHON 3.13+ ---
-import sys
-try:
-    import audioop
-except ImportError:
-    import audioop_lts
-    sys.modules['audioop'] = audioop_lts
+import discord
+from discord import app_commands
+from groq import AsyncGroq
+from flask import Flask
+from threading import Thread
+import os
+import warnings
+
+warnings.filterwarnings("ignore")
+
+# ... the rest of the code ...
+
 
 # --- MAIN IMPORTS ---
 import discord
