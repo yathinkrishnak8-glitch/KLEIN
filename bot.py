@@ -1,51 +1,70 @@
-import sqlite3
-import json
+import discord
+from discord.ext import commands, tasks
+import os
+import random
+import warnings
 
-# Thread-safe database connection
-conn = sqlite3.connect('bot_database.db', check_same_thread=False, timeout=15.0)
+# Import our custom modules
+from bot_keepalive import keep_alive
+from bot_database import init_db, get_config
+from bot_utils import send_dev_log
 
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
-DEFAULT_TOGGLES = {
-    "weather": True, "stats": True, "get_prompt": True, "personality": True, 
-    "prank_idea": True, "setchannel": True, "unsetchannel": True, 
-    "clearmemory": True, "changemodel": True, "snipe": True, "tldr": True, 
-    "setdevlog": True, "info": True, "search": True, "news": True, 
-    "deepdive": True, "auto_research": True, "target": True
-}
+warnings.filterwarnings("ignore")
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
-def init_db():
-    cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS server_config 
-                      (guild_id TEXT PRIMARY KEY, toggles TEXT, personality TEXT, dev_channel TEXT, current_model TEXT)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS active_channels 
-                      (channel_id TEXT PRIMARY KEY, guild_id TEXT)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS chat_memory 
-                      (channel_id TEXT PRIMARY KEY, history TEXT)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS snipes 
-                      (channel_id TEXT PRIMARY KEY, data TEXT)''')
-    conn.commit()
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True 
 
-def get_config(guild_id):
+# We use commands.Bot to support our modular Cog system
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+@bot.event
+async def setup_hook():
+    init_db()
+    # Load our separate files (Cogs)
+    await bot.load_extension("bot_commands")
+    await bot.load_extension("bot_events")
+    await bot.tree.sync()
+    status_task.start()
+    print(f"Logged in as {bot.user} | Modular Engine Loaded Successfully")
+
+@tasks.loop(minutes=15)
+async def status_task():
+    statuses = [
+        discord.Activity(type=discord.ActivityType.watching, name="Modular Data Streams"),
+        discord.Game(name="with Python Cogs"),
+        discord.Activity(type=discord.ActivityType.listening, name="background processes"),
+        discord.Game(name="with LLaMA 3.3"),
+    ]
+    await bot.change_presence(activity=random.choice(statuses))
+
+@status_task.before_loop
+async def before_status_task():
+    await bot.wait_until_ready()
+
+# --- GLOBAL ERROR & TOGGLE CHECKS ---
+@bot.tree.interaction_check
+async def check_toggles(interaction: discord.Interaction):
+    if interaction.type == discord.InteractionType.application_command:
+        cmd_name = interaction.command.name
+        guild_id = interaction.guild_id or interaction.user.id
+        if cmd_name in ["toggle", "purge", "lockdown", "unlock"]: return True
+        toggles, _, _, _ = get_config(guild_id)
+        if cmd_name in toggles and not toggles[cmd_name]:
+            await interaction.response.send_message(f"🔴 Access Denied. `/{cmd_name}` is disabled.", ephemeral=True)
+            return False
+    return True
+
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error):
+    err_msg = f"❌ **System Error:** Command execution failed."
     try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT toggles, personality, dev_channel, current_model FROM server_config WHERE guild_id=?", (str(guild_id),))
-        row = cursor.fetchone()
-        if row: return json.loads(row[0]), row[1], row[2], row[3] or DEFAULT_MODEL
-        return DEFAULT_TOGGLES.copy(), None, None, DEFAULT_MODEL
-    except Exception:
-        return DEFAULT_TOGGLES.copy(), None, None, DEFAULT_MODEL
+        if interaction.response.is_done(): await interaction.followup.send(err_msg, ephemeral=True)
+        else: await interaction.response.send_message(err_msg, ephemeral=True)
+    except: pass
+    await send_dev_log(bot, interaction.guild_id, str(error))
 
-def update_config(guild_id, toggles=None, personality=None, dev_channel=None, model=None):
-    try:
-        curr_t, curr_p, curr_d, curr_m = get_config(guild_id)
-        t = json.dumps(toggles) if toggles else json.dumps(curr_t)
-        p = personality if personality is not None else curr_p
-        d = dev_channel if dev_channel is not None else curr_d
-        m = model if model is not None else curr_m
-        
-        cursor = conn.cursor()
-        cursor.execute("REPLACE INTO server_config (guild_id, toggles, personality, dev_channel, current_model) VALUES (?, ?, ?, ?, ?)", 
-                  (str(guild_id), t, p, d, m))
-        conn.commit()
-    except Exception: pass
-
+# Start Flask server and connect to Discord
+keep_alive()
+bot.run(DISCORD_TOKEN)
