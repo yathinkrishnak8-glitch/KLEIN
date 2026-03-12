@@ -1,7 +1,6 @@
 import sqlite3
 import json
 
-# Thread-safe database connection
 conn = sqlite3.connect('bot_database.db', check_same_thread=False, timeout=15.0)
 
 DEFAULT_MODEL = "llama-3.3-70b-versatile"
