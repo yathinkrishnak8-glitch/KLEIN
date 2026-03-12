@@ -17,7 +17,6 @@ async def needs_research(text):
     if len(text) < 15: return False
     prompt = f"Does this user message require looking up up-to-date facts, current news, or internet research to answer accurately? Answer ONLY 'YES' or 'NO'. Message: '{text}'"
     try:
-        # Pings the 8B model. It acts as an ultra-fast gatekeeper (~0.2s response)
         response = await groq_client.chat.completions.create(
             model="llama-3.1-8b-instant", messages=[{"role": "user", "content": prompt}], max_tokens=5, temperature=0.0
         )
@@ -30,7 +29,9 @@ async def silent_search(query):
         except: return []
     data = await asyncio.to_thread(quick_scrape)
     if data:
-        return "\n".join([f"- {r['title']}: {r['body']}" for r in data])
+        # Limit the string to prevent token overload
+        context = "\n".join([f"- {r['title']}: {r['body']}" for r in data])
+        return context[:2000] 
     return ""
 
 
