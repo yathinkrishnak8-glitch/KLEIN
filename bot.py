@@ -4,7 +4,7 @@ import os
 import random
 import warnings
 
-# Import our custom modules
+# Import custom modules
 from bot_keepalive import keep_alive
 from bot_database import init_db, get_config
 from bot_utils import send_dev_log
@@ -16,26 +16,25 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True 
 
-# We use commands.Bot to support our modular Cog system
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def setup_hook():
     init_db()
-    # Load our separate files (Cogs)
+    # Load separate files (Cogs)
     await bot.load_extension("bot_commands")
     await bot.load_extension("bot_events")
     await bot.tree.sync()
     status_task.start()
-    print(f"Logged in as {bot.user} | Modular Engine Loaded Successfully")
+    print(f"Logged in as {bot.user} | Modular V10 Engine Loaded")
 
 @tasks.loop(minutes=15)
 async def status_task():
     statuses = [
-        discord.Activity(type=discord.ActivityType.watching, name="Modular Data Streams"),
-        discord.Game(name="with Python Cogs"),
-        discord.Activity(type=discord.ActivityType.listening, name="background processes"),
-        discord.Game(name="with LLaMA 3.3"),
+        discord.Activity(type=discord.ActivityType.watching, name="Live Data Streams"),
+        discord.Game(name="with background intelligence"),
+        discord.Activity(type=discord.ActivityType.listening, name="to the network"),
+        discord.Game(name="with LLaMA 3.3 70B"),
     ]
     await bot.change_presence(activity=random.choice(statuses))
 
@@ -65,6 +64,7 @@ async def on_app_command_error(interaction: discord.Interaction, error):
     except: pass
     await send_dev_log(bot, interaction.guild_id, str(error))
 
-# Start Flask server and connect to Discord
 keep_alive()
 bot.run(DISCORD_TOKEN)
+
+
