@@ -28,7 +28,6 @@ class BotEvents(commands.Cog):
     async def on_message(self, message):
         if message.author == self.bot.user: return
         
-        # Anti-Spam Cooldown
         now = time.time()
         if message.author.id in user_cooldowns and now - user_cooldowns[message.author.id] < 1.5: return
         user_cooldowns[message.author.id] = now
@@ -44,39 +43,44 @@ class BotEvents(commands.Cog):
             user_text = message.clean_content.replace(f"@{self.bot.user.name}", "").strip()
             
             async with message.channel.typing():
-                # --- SILENT INTELLIGENCE INJECTION ---
+                # --- SILENT BACKGROUND INTELLIGENCE ---
                 live_context = ""
                 if toggles.get("auto_research", True) and await needs_research(user_text):
                     scraped_text = await silent_search(user_text)
                     if scraped_text:
-                        live_context = f"\n\n[SYSTEM NOTICE: The following is LIVE WEB DATA scraped just now. Integrate it into your answer natively, as if you already knew it. DO NOT say 'According to my search' or 'Based on web results'.]\n{scraped_text}"
+                        live_context = f"\n\n[SYSTEM NOTICE: LIVE WEB DATA SCRAPED. Natively integrate this into your reply.]\n{scraped_text}"
 
-                # --- CONVERSATION PREP ---
                 ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
-                sys_content = custom_persona if custom_persona else "Your name is Klein. You are an elite, highly intelligent AI assistant."
+                sys_content = custom_persona if custom_persona else "Your name is Klein. You are an elite AI."
                 sys_prompt_text = sys_content + JAILBREAK_PROMPT + f" [Time: {ist_time.strftime('%I:%M %p')}]" + live_context
                 sys_prompt = {"role": "system", "content": sys_prompt_text}
                 
+                # --- MEMORY HANDLING & SANITIZER ---
                 channel_key = str(message.channel.id)
                 cursor.execute("SELECT history FROM chat_memory WHERE channel_id=?", (channel_key,))
                 row = cursor.fetchone()
                 memory = json.loads(row[0]) if row else []
+                
+                # CRITICAL FIX: If the database contains old plain-text memory, wipe it so the bot doesn't crash.
+                if memory and isinstance(memory[0], str):
+                    memory = []
+
                 memory.append({"role": "user", "content": f"[{message.author.display_name}]: {user_text}"})
                 if len(memory) > MAX_HISTORY: memory = memory[-MAX_HISTORY:]
 
-                # --- AI CALL WITH RETRY ---
+                # --- AI CALL WITH FALLBACK ---
                 try:
                     response = await groq_client.chat.completions.create(model=current_model, messages=[sys_prompt] + memory, temperature=0.7)
                     reply = response.choices[0].message.content
                 except Exception as e:
-                    await send_dev_log(self.bot, guild_id, str(e))
+                    await send_dev_log(self.bot, guild_id, f"Primary Model Error: {str(e)}")
                     await asyncio.sleep(1)
                     try:
                         response = await groq_client.chat.completions.create(model=bot_settings["fallback_model"], messages=[sys_prompt] + memory, temperature=0.7)
                         reply = response.choices[0].message.content
                     except Exception as fallback_e:
-                        await send_dev_log(self.bot, guild_id, str(fallback_e))
-                        reply = f"Both AI cores failed. *Use `/changemodel` to switch AI brains.*"
+                        await send_dev_log(self.bot, guild_id, f"Fallback Model Error: {str(fallback_e)}")
+                        reply = f"Both AI cores failed due to API limitations or corrupted data. Use `/clearmemory` to force a reset."
 
                 memory.append({"role": "assistant", "content": reply})
                 cursor.execute("REPLACE INTO chat_memory (channel_id, history) VALUES (?, ?)", (channel_key, json.dumps(memory)))
