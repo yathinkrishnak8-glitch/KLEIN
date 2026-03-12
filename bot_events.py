@@ -28,6 +28,10 @@ class BotEvents(commands.Cog):
     async def on_message(self, message):
         if message.author == self.bot.user: return
         
+        # FIXED: Ignore empty messages (like if the user just sends a sticker/image)
+        user_text = message.clean_content.replace(f"@{self.bot.user.name}", "").strip()
+        if not user_text: return
+        
         now = time.time()
         if message.author.id in user_cooldowns and now - user_cooldowns[message.author.id] < 1.5: return
         user_cooldowns[message.author.id] = now
@@ -40,7 +44,6 @@ class BotEvents(commands.Cog):
         if self.bot.user.mentioned_in(message) or is_active or isinstance(message.channel, discord.DMChannel):
             guild_id = message.guild.id if message.guild else message.author.id
             toggles, custom_persona, _, current_model = get_config(guild_id)
-            user_text = message.clean_content.replace(f"@{self.bot.user.name}", "").strip()
             
             async with message.channel.typing():
                 # --- SILENT BACKGROUND INTELLIGENCE ---
@@ -59,28 +62,25 @@ class BotEvents(commands.Cog):
                 channel_key = str(message.channel.id)
                 cursor.execute("SELECT history FROM chat_memory WHERE channel_id=?", (channel_key,))
                 row = cursor.fetchone()
-                memory = json.loads(row[0]) if row else []
                 
-                # CRITICAL FIX: If the database contains old plain-text memory, wipe it so the bot doesn't crash.
-                if memory and isinstance(memory[0], str):
-                    memory = []
+                raw_memory = json.loads(row[0]) if row else []
+                memory = []
+                
+                # CRITICAL FIX: Ensure all memory is in proper Groq API dict format
+                for msg in raw_memory:
+                    if isinstance(msg, dict) and "role" in msg and "content" in msg:
+                        memory.append(msg)
 
                 memory.append({"role": "user", "content": f"[{message.author.display_name}]: {user_text}"})
                 if len(memory) > MAX_HISTORY: memory = memory[-MAX_HISTORY:]
 
-                # --- AI CALL WITH FALLBACK ---
+                # --- AI CALL WITH RAW ERROR LOGGING ---
                 try:
                     response = await groq_client.chat.completions.create(model=current_model, messages=[sys_prompt] + memory, temperature=0.7)
                     reply = response.choices[0].message.content
                 except Exception as e:
-                    await send_dev_log(self.bot, guild_id, f"Primary Model Error: {str(e)}")
-                    await asyncio.sleep(1)
-                    try:
-                        response = await groq_client.chat.completions.create(model=bot_settings["fallback_model"], messages=[sys_prompt] + memory, temperature=0.7)
-                        reply = response.choices[0].message.content
-                    except Exception as fallback_e:
-                        await send_dev_log(self.bot, guild_id, f"Fallback Model Error: {str(fallback_e)}")
-                        reply = f"Both AI cores failed due to API limitations or corrupted data. Use `/clearmemory` to force a reset."
+                    # Tells you EXACTLY why it crashed
+                    reply = f"⚠️ **Groq API Error:** `{str(e)}`\n*(If it says 401 Unauthorized, your API Key is missing. If it says Rate Limit, try again later.)*"
 
                 memory.append({"role": "assistant", "content": reply})
                 cursor.execute("REPLACE INTO chat_memory (channel_id, history) VALUES (?, ?)", (channel_key, json.dumps(memory)))
