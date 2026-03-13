@@ -7,12 +7,16 @@ import json
 import time
 from duckduckgo_search import DDGS
 from bot_database import get_config, update_config, conn
-from bot_ai import groq_client
+
+# CRITICAL FIX: We now import the list of 5 groq_clients instead of the old singular one
+from bot_ai import groq_clients
 from bot_keepalive import bot_stats, start_time
 
 class SlashCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    # --- GLOBAL COMMANDS (Servers & DMs) ---
 
     @app_commands.command(name="info", description="View digital system status terminal")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -74,6 +78,10 @@ class SlashCommands(commands.Cog):
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def search(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
+        
+        if not groq_clients:
+            return await interaction.followup.send("⚠️ No API keys configured!")
+            
         guild_id = interaction.guild_id or interaction.user.id
         _, _, _, current_model = get_config(guild_id)
         
@@ -86,7 +94,10 @@ class SlashCommands(commands.Cog):
 
         web_context = "\n".join([f"- {r['title']}: {r['body']}" for r in text_data])
         prompt = f"Query: {query}\n\nLive Data:\n{web_context}\n\nSummarize naturally."
-        response = await groq_client.chat.completions.create(model=current_model, messages=[{"role": "user", "content": prompt}], temperature=0.5)
+        
+        # Load Balance: Pick a random API key from your list of 5
+        client = random.choice(groq_clients)
+        response = await client.chat.completions.create(model=current_model, messages=[{"role": "user", "content": prompt}], temperature=0.5)
         await interaction.followup.send(f"🌐 **Search Results:** `{query}`\n\n{response.choices[0].message.content}")
 
     @app_commands.command(name="personality", description="Set bot persona (Type 'default' to reset)")
@@ -131,16 +142,23 @@ class SlashCommands(commands.Cog):
     @app_commands.guild_only()
     async def tldr(self, interaction: discord.Interaction):
         await interaction.response.defer()
+        
+        if not groq_clients:
+            return await interaction.followup.send("⚠️ No API keys configured!")
+            
         _, _, _, current_model = get_config(interaction.guild_id)
         messages = [msg async for msg in interaction.channel.history(limit=50)]
         messages.reverse() 
         chat_log = "\n".join([f"{m.author.name}: {m.content}" for m in messages if not m.author.bot])
         if len(chat_log) < 50: return await interaction.followup.send("Not enough chat history.")
         prompt = f"Summarize this chat log briefly using bullet points:\n\n{chat_log[-3000:]}"
-        response = await groq_client.chat.completions.create(model=current_model, messages=[{"role": "user", "content": prompt}], temperature=0.5)
+        
+        # Load Balance: Pick a random API key from your list of 5
+        client = random.choice(groq_clients)
+        response = await client.chat.completions.create(model=current_model, messages=[{"role": "user", "content": prompt}], temperature=0.5)
         await interaction.followup.send(f"📜 **Channel TL;DR:**\n{response.choices[0].message.content}")
 
-    @app_commands.command(name="toggle", description="[ADMIN] Turn any bot command ON or OFF")
+    @app_commands.command(name="toggle", description="[ADMIN] Turn any command ON or OFF")
     @app_commands.default_permissions(administrator=True)
     @app_commands.guild_only()
     async def toggle_cmd(self, interaction: discord.Interaction, command_name: str):
@@ -161,3 +179,5 @@ class SlashCommands(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(SlashCommands(bot))
+
+
