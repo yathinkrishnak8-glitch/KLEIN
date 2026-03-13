@@ -37,11 +37,35 @@ class SlashCommands(commands.Cog):
         target_user = target_user or interaction.user
         fake_ip = f"{random.randint(11, 215)}.{random.randint(10, 250)}.***.***"
         
+        # --- THE RANDOMIZED SUS ACTIONS POOL ---
+        sus_actions_pool = [
+            "Forwarding search history to local church",
+            "Notifying FBI of suspicious anime watch time",
+            "B-2 Stealth Bombers airborne",
+            "Calling SpaceX Orbital Strike Command",
+            "Leaking Discord DMs to Twitter",
+            "Uploading 10TB 'Homework' folder to family group chat",
+            "Purchasing 500 Premium OnlyFans subscriptions",
+            "Bypassing mainframe firewall",
+            "Rerouting Wi-Fi to NSA servers",
+            "Installing 'Free_Robux.exe' on host machine",
+            "Unzipping 50 YottaBytes of Zip Bombs",
+            "Activating web-camera silently",
+            "Sending current coordinates to local cartel",
+            "Downloading 4TB of suspicious memes",
+            "Alerting IRS of unpaid digital taxes",
+            "Linking bank account to random gacha game"
+        ]
+        
+        # Randomly select 4 actions every time the command is run!
+        chosen_actions = random.sample(sus_actions_pool, 4)
+        actions_formatted = "\n".join([f"✅ {action}..." for action in chosen_actions])
+        
         embed = discord.Embed(title="⚠️ TARGET ACQUIRED ⚠️", color=0xFF0000)
         embed.set_thumbnail(url=target_user.display_avatar.url if target_user.display_avatar else None)
         embed.add_field(name="👤 Target Identity", value=f"**Username:** {target_user.name}\n**Network ID:** `{target_user.id}`", inline=False)
         embed.add_field(name="🌐 Trace Route", value=f"**Locating Node...**\n**IP Address:** `{fake_ip}`\n**Status:** Intercepted", inline=False)
-        embed.add_field(name="🚀 Tactical Actions Deployed", value="✅ Miscalled Jeffrey Epstein\n✅ B-2 Stealth Bombers Airborne\n✅ Calling SpaceX Orbital Strike Command\n✅ History sent to authorities", inline=False)
+        embed.add_field(name="🚀 Tactical Actions Deployed", value=actions_formatted, inline=False)
         
         msg = await interaction.followup.send("`[SYSTEM]: Establishing secure connection...`")
         await asyncio.sleep(1.5)
