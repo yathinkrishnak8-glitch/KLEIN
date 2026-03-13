@@ -14,8 +14,6 @@ class SlashCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    # --- GLOBAL COMMANDS (Servers & DMs) ---
-
     @app_commands.command(name="info", description="View digital system status terminal")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def info(self, interaction: discord.Interaction):
@@ -30,7 +28,7 @@ class SlashCommands(commands.Cog):
         embed = discord.Embed(title="💠 GROQ TERMINAL :: MODULAR CORE", color=0xFF5500)
         embed.add_field(name="📡 Status", value=f"🟢 Online\n**Ping:** `{ping}ms`\n**Uptime:** `{uptime_hrs}h`", inline=True)
         embed.add_field(name="👥 Network", value=f"**Scope:** `{members}`\n**Messages:** `{bot_stats['messages_processed']}`", inline=True)
-        embed.add_field(name="🧠 Core Engine", value=f"**Model:** `{current_model}`\n**Mode:** `Silent Intelligence`", inline=False)
+        embed.add_field(name="🧠 Core Engine", value=f"**Model:** `{current_model}`\n**Mode:** `Cascading Intelligence`", inline=False)
         embed.add_field(name="🎭 Personality", value=f"> *{active_persona}*", inline=False)
         embed.set_footer(text="⚙️ Built by yathin | Global Omni-Core")
         await interaction.response.send_message(embed=embed)
@@ -59,16 +57,18 @@ class SlashCommands(commands.Cog):
         await asyncio.sleep(1.5)
         await msg.edit(content=None, embed=embed)
 
-    @app_commands.command(name="changemodel", description="Switch the active Groq AI model")
+    @app_commands.command(name="changemodel", description="Switch the active AI model")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.choices(model_name=[
+        app_commands.Choice(name="DeepSeek R1 70B (Max Logic)", value="deepseek-r1-distill-llama-70b"),
         app_commands.Choice(name="LLaMA 3.3 70B (Max Intelligence)", value="llama-3.3-70b-versatile"),
+        app_commands.Choice(name="Mixtral 8x7B (Balanced)", value="mixtral-8x7b-32768"),
         app_commands.Choice(name="LLaMA 3.1 8B (Max Speed)", value="llama-3.1-8b-instant")
     ])
     async def change_model(self, interaction: discord.Interaction, model_name: app_commands.Choice[str]):
         guild_id = interaction.guild_id or interaction.user.id
         update_config(guild_id, model=model_name.value)
-        await interaction.response.send_message(f"🔄 **Engine Switched:** Now using `{model_name.name}`.")
+        await interaction.response.send_message(f"🔄 **Engine Switched:** Now prioritizing `{model_name.name}`. \n*(Note: If it hits a rate limit, the bot will secretly cascade to backups to ensure you always get a reply!)*")
 
     @app_commands.command(name="search", description="Scrape the web for live facts")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -109,6 +109,23 @@ class SlashCommands(commands.Cog):
         await interaction.response.send_message("🧠 Memory wiped for this chat.")
 
     # --- SERVER ONLY COMMANDS ---
+    @app_commands.command(name="setchannel", description="[ADMIN] Bot talks here without needing to be pinged")
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.guild_only()
+    async def setchannel(self, interaction: discord.Interaction):
+        cursor = conn.cursor()
+        cursor.execute("REPLACE INTO active_channels (channel_id, guild_id) VALUES (?, ?)", (str(interaction.channel_id), str(interaction.guild_id)))
+        conn.commit()
+        await interaction.response.send_message(f"👀 **Auto-Chat Enabled:** I will now reply to all messages in <#{interaction.channel_id}> without being pinged.")
+
+    @app_commands.command(name="unsetchannel", description="[ADMIN] Stop bot from auto-talking in this channel")
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.guild_only()
+    async def unsetchannel(self, interaction: discord.Interaction):
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM active_channels WHERE channel_id=?", (str(interaction.channel_id),))
+        conn.commit()
+        await interaction.response.send_message("🛑 **Auto-Chat Disabled:** I will now only reply when pinged.")
 
     @app_commands.command(name="tldr", description="Summarize the last 50 messages")
     @app_commands.guild_only()
@@ -135,13 +152,6 @@ class SlashCommands(commands.Cog):
         status = "🟢 **ENABLED**" if toggles[cmd] else "🔴 **DISABLED**"
         await interaction.response.send_message(f"Master Switch: `{cmd}` updated to {status}.")
 
-    @app_commands.command(name="setdevlog", description="[ADMIN] Set error log channel")
-    @app_commands.default_permissions(administrator=True)
-    @app_commands.guild_only()
-    async def setdevlog(self, interaction: discord.Interaction):
-        update_config(interaction.guild_id, dev_channel=str(interaction.channel_id))
-        await interaction.response.send_message("🛠️ Dev-Log channel locked.")
-
     @app_commands.command(name="purge", description="[ADMIN] Bulk delete messages")
     @app_commands.default_permissions(manage_messages=True)
     @app_commands.guild_only()
@@ -149,23 +159,5 @@ class SlashCommands(commands.Cog):
         deleted = await interaction.channel.purge(limit=amount)
         await interaction.response.send_message(f"🧹 Purged {len(deleted)} messages.", ephemeral=True)
 
-    @app_commands.command(name="setchannel", description="Bot talks here automatically")
-    @app_commands.guild_only()
-    async def set_channel(self, interaction: discord.Interaction):
-        cursor = conn.cursor()
-        cursor.execute("REPLACE INTO active_channels (channel_id, guild_id) VALUES (?, ?)", (str(interaction.channel_id), str(interaction.guild_id)))
-        conn.commit()
-        await interaction.response.send_message(f"👀 Monitoring #{interaction.channel.name}.")
-
-    @app_commands.command(name="unsetchannel", description="Stop auto-talking")
-    @app_commands.guild_only()
-    async def unset_channel(self, interaction: discord.Interaction):
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM active_channels WHERE channel_id=?", (str(interaction.channel_id),))
-        conn.commit()
-        await interaction.response.send_message("🛑 Stopped monitoring.")
-
 async def setup(bot):
     await bot.add_cog(SlashCommands(bot))
-
-
