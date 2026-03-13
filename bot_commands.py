@@ -4,6 +4,7 @@ from discord import app_commands
 import random
 import asyncio
 import time
+import urllib.parse
 from duckduckgo_search import DDGS
 from bot_database import get_config, update_config, conn
 from bot_ai import robust_api_call, groq_clients
@@ -37,7 +38,6 @@ class SlashCommands(commands.Cog):
         target_user = target_user or interaction.user
         fake_ip = f"{random.randint(11, 215)}.{random.randint(10, 250)}.***.***"
         
-        # --- THE RANDOMIZED SUS ACTIONS POOL ---
         sus_actions_pool = [
             "Forwarding search history to local church",
             "Notifying FBI of suspicious anime watch time",
@@ -53,11 +53,9 @@ class SlashCommands(commands.Cog):
             "Activating web-camera silently",
             "Sending current coordinates to local cartel",
             "Downloading 4TB of suspicious memes",
-            "Alerting IRS of unpaid digital taxes",
-            "Linking bank account to random gacha game"
+            "Alerting IRS of unpaid digital taxes"
         ]
         
-        # Randomly select 4 actions every time the command is run!
         chosen_actions = random.sample(sus_actions_pool, 4)
         actions_formatted = "\n".join([f"✅ {action}..." for action in chosen_actions])
         
@@ -72,6 +70,27 @@ class SlashCommands(commands.Cog):
         await msg.edit(content="`[SYSTEM]: Bypassing firewall...`")
         await asyncio.sleep(1.5)
         await msg.edit(content=None, embed=embed)
+
+    # --- NEW FEATURE: AI IMAGE GENERATION ---
+    @app_commands.command(name="imagine", description="Generate a high-quality AI image")
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def imagine(self, interaction: discord.Interaction, prompt: str):
+        await interaction.response.defer()
+        
+        # We use LLaMA 8B to enhance the user's prompt to make the image look amazing
+        enhancement_prompt = f"Enhance this image generation prompt to make it highly detailed, cinematic, and beautiful. Just return the enhanced prompt, no extra text. Original: {prompt}"
+        enhanced_prompt, _ = await robust_api_call([{"role": "user", "content": enhancement_prompt}], "llama-3.1-8b-instant", temperature=0.7, max_tokens=100)
+        
+        # Safely encode the prompt for a URL
+        safe_prompt = urllib.parse.quote(enhanced_prompt)
+        # Pollinations.ai is a free image generation API that generates images via URL!
+        image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true"
+        
+        embed = discord.Embed(title="🎨 Image Generated", description=f"**Prompt:** *{prompt}*", color=0x00FFAA)
+        embed.set_image(url=image_url)
+        embed.set_footer(text="Powered by Flux AI & Klein Omni-Core")
+        
+        await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="changemodel", description="Switch the active AI model")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -94,7 +113,7 @@ class SlashCommands(commands.Cog):
         _, _, _, current_model = get_config(interaction.guild_id or interaction.user.id)
         
         def perform_scrape():
-            try: return list(DDGS().text(query, max_results=3))
+            try: return list(DDGS().text(query, max_results=5))
             except: return []
 
         text_data = await asyncio.to_thread(perform_scrape)
@@ -152,24 +171,6 @@ class SlashCommands(commands.Cog):
         conn.cursor().execute("DELETE FROM active_channels WHERE channel_id=?", (str(interaction.channel_id),))
         conn.commit()
         await interaction.response.send_message("🛑 **Auto-Chat Disabled.**")
-
-    @app_commands.command(name="toggle", description="[ADMIN] Turn any command ON or OFF")
-    @app_commands.default_permissions(administrator=True)
-    @app_commands.guild_only()
-    async def toggle_cmd(self, interaction: discord.Interaction, command_name: str):
-        cmd = command_name.lower()
-        toggles, _, _, _ = get_config(interaction.guild_id)
-        if cmd not in toggles: return await interaction.response.send_message(f"⚠️ `{cmd}` is not a valid feature.")
-        toggles[cmd] = not toggles[cmd]
-        update_config(interaction.guild_id, toggles=toggles)
-        await interaction.response.send_message(f"Master Switch: `{cmd}` updated to {'🟢 ON' if toggles[cmd] else '🔴 OFF'}.")
-
-    @app_commands.command(name="purge", description="[ADMIN] Bulk delete messages")
-    @app_commands.default_permissions(manage_messages=True)
-    @app_commands.guild_only()
-    async def purge(self, interaction: discord.Interaction, amount: int):
-        deleted = await interaction.channel.purge(limit=amount)
-        await interaction.response.send_message(f"🧹 Purged {len(deleted)} messages.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(SlashCommands(bot))
