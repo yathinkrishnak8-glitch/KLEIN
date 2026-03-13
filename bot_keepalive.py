@@ -5,12 +5,14 @@ import os
 
 app = Flask('')
 start_time = time.time()
-bot_stats = {"messages_processed": 0}
+
+# Added compressions_done tracker
+bot_stats = {"messages_processed": 0, "compressions_done": 0}
 
 @app.route('/')
 def home():
     uptime = round((time.time() - start_time) / 3600, 2)
-    return f"Modular Groq Core Online | msgs: {bot_stats['messages_processed']} | Uptime: {uptime}h"
+    return f"Adaptive Omni-Core Online | Msgs: {bot_stats['messages_processed']} | Memory Compressions: {bot_stats['compressions_done']} | Uptime: {uptime}h"
 
 def run_server():
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
@@ -19,5 +21,3 @@ def keep_alive():
     t = Thread(target=run_server)
     t.daemon = True
     t.start()
-
-
