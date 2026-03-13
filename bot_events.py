@@ -5,7 +5,7 @@ import json
 import asyncio
 from datetime import datetime, timedelta
 from bot_database import get_config, conn
-from bot_ai import needs_research, silent_search, groq_client, bot_settings, JAILBREAK_PROMPT
+from bot_ai import get_search_query, silent_search, groq_client, bot_settings, JAILBREAK_PROMPT
 from bot_keepalive import bot_stats
 from bot_utils import send_dev_log
 
@@ -28,7 +28,6 @@ class BotEvents(commands.Cog):
     async def on_message(self, message):
         if message.author == self.bot.user: return
         
-        # FIXED: Ignore empty messages (like if the user just sends a sticker/image)
         user_text = message.clean_content.replace(f"@{self.bot.user.name}", "").strip()
         if not user_text: return
         
@@ -46,40 +45,43 @@ class BotEvents(commands.Cog):
             toggles, custom_persona, _, current_model = get_config(guild_id)
             
             async with message.channel.typing():
-                # --- SILENT BACKGROUND INTELLIGENCE ---
-                live_context = ""
-                if toggles.get("auto_research", True) and await needs_research(user_text):
-                    scraped_text = await silent_search(user_text)
-                    if scraped_text:
-                        live_context = f"\n\n[SYSTEM NOTICE: LIVE WEB DATA SCRAPED. Natively integrate this into your reply.]\n{scraped_text}"
-
-                ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
-                sys_content = custom_persona if custom_persona else "Your name is Klein. You are an elite AI."
-                sys_prompt_text = sys_content + JAILBREAK_PROMPT + f" [Time: {ist_time.strftime('%I:%M %p')}]" + live_context
-                sys_prompt = {"role": "system", "content": sys_prompt_text}
-                
-                # --- MEMORY HANDLING & SANITIZER ---
+                # --- MEMORY LOADING (Done first for context) ---
                 channel_key = str(message.channel.id)
                 cursor.execute("SELECT history FROM chat_memory WHERE channel_id=?", (channel_key,))
                 row = cursor.fetchone()
                 
                 raw_memory = json.loads(row[0]) if row else []
                 memory = []
-                
-                # CRITICAL FIX: Ensure all memory is in proper Groq API dict format
                 for msg in raw_memory:
                     if isinstance(msg, dict) and "role" in msg and "content" in msg:
                         memory.append(msg)
 
+                # Get the last 4 messages to give the searcher context
+                recent_msgs = memory[-4:] if len(memory) >= 4 else memory
+                context_str = "\n".join([m["content"] for m in recent_msgs])
+
+                # --- 🌐 SILENT BACKGROUND INTELLIGENCE ---
+                live_context = ""
+                if toggles.get("auto_research", True):
+                    search_query = await get_search_query(context_str, user_text)
+                    if search_query != "NO":
+                        scraped_text = await silent_search(search_query)
+                        if scraped_text:
+                            live_context = f"\n\n[SYSTEM NOTICE: LIVE WEB DATA SCRAPED JUST NOW regarding '{search_query}'. Natively integrate this into your reply to verify, inform, or correct the user.]\n{scraped_text}"
+
+                ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
+                sys_content = custom_persona if custom_persona else "Your name is Klein. You are an elite AI."
+                sys_prompt_text = sys_content + JAILBREAK_PROMPT + f" [Time: {ist_time.strftime('%I:%M %p')}]" + live_context
+                sys_prompt = {"role": "system", "content": sys_prompt_text}
+
                 memory.append({"role": "user", "content": f"[{message.author.display_name}]: {user_text}"})
                 if len(memory) > MAX_HISTORY: memory = memory[-MAX_HISTORY:]
 
-                # --- AI CALL WITH RAW ERROR LOGGING ---
+                # --- 🚀 AI CALL ---
                 try:
                     response = await groq_client.chat.completions.create(model=current_model, messages=[sys_prompt] + memory, temperature=0.7)
                     reply = response.choices[0].message.content
                 except Exception as e:
-                    # Tells you EXACTLY why it crashed
                     reply = f"⚠️ **Groq API Error:** `{str(e)}`\n*(If it says 401 Unauthorized, your API Key is missing. If it says Rate Limit, try again later.)*"
 
                 memory.append({"role": "assistant", "content": reply})
@@ -90,5 +92,3 @@ class BotEvents(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(BotEvents(bot))
-
-
