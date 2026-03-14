@@ -5,7 +5,7 @@ import json
 import asyncio
 from datetime import datetime, timedelta
 from bot_database import get_config, conn
-from bot_ai import robust_api_call, compress_memory, background_analyzer, silent_search, JAILBREAK_PROMPT
+from bot_ai import robust_api_call, compress_memory, background_analyzer, silent_search, BASE_SYSTEM
 from bot_keepalive import bot_stats
 
 user_cooldowns = {}
@@ -19,7 +19,6 @@ class BotEvents(commands.Cog):
     def cog_unload(self):
         self.auto_optimizer.cancel()
 
-    # --- THE AUTO-OPTIMIZATION AI CORE ---
     @tasks.loop(minutes=15.0)
     async def auto_optimizer(self):
         print("🔄 [SYSTEM] Running Background AI Optimization...")
@@ -69,6 +68,8 @@ class BotEvents(commands.Cog):
         if self.bot.user.mentioned_in(message) or is_active or isinstance(message.channel, discord.DMChannel):
             bot_stats["messages_processed"] += 1
             guild_id = message.guild.id if message.guild else message.author.id
+            
+            # Grabs the custom personality from the database!
             toggles, custom_persona, _, current_model = get_config(guild_id)
             
             async with message.channel.typing():
@@ -86,12 +87,13 @@ class BotEvents(commands.Cog):
                     if search_query:
                         scraped = await silent_search(search_query)
                         if scraped: 
-                            live_context = f"\n\n[LIVE WEB DATA SCRAPED JUST NOW regarding '{search_query}'. Natively integrate this. Do NOT hallucinate outside this data.]\n{scraped}"
-                        else:
-                            live_context = f"\n\n[SYSTEM NOTE: A web search for '{search_query}' was attempted, but NO relevant information was found. Do NOT invent an answer.]"
+                            live_context = f"\n\n[LIVE WEB DATA SCRAPED JUST NOW]:\n{scraped}"
 
                 ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
-                sys_prompt_text = (custom_persona or "Your name is Klein.") + JAILBREAK_PROMPT + f" [Time: {ist_time.strftime('%I:%M %p')}]" + live_context
+                
+                # Builds the prompt using whatever was set in /core
+                core_directive = custom_persona if custom_persona else "Your name is Klein. You are a helpful AI."
+                sys_prompt_text = f"[CORE OVERRIDE]: {core_directive}\n\n{BASE_SYSTEM}\n[Time: {ist_time.strftime('%I:%M %p')}]" + live_context
                 sys_prompt = {"role": "system", "content": sys_prompt_text}
 
                 memory.append({"role": "user", "content": f"[{message.author.display_name}]: {user_text}"})
