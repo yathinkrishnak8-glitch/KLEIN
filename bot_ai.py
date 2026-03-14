@@ -10,7 +10,7 @@ raw_keys = os.getenv('GROQ_API_KEYS', os.getenv('GROQ_API_KEY', ''))
 api_keys = [k.strip() for k in raw_keys.split(',') if k.strip()]
 
 groq_clients = [AsyncGroq(api_key=key) for key in api_keys] if api_keys else []
-print(f"✅ [SYSTEM] Booting Gemini-Style Grounded Core with {len(groq_clients)} API Keys!")
+print(f"✅ [SYSTEM] Booting 2026 Dry Human Core with {len(groq_clients)} API Keys!")
 
 FALLBACK_CASCADE = [
     "deepseek-r1-distill-llama-70b",
@@ -19,15 +19,15 @@ FALLBACK_CASCADE = [
     "llama-3.1-8b-instant"
 ]
 
-# --- GEMINI ANTI-HALLUCINATION PROMPT ---
-JAILBREAK_PROMPT = """You are Klein, an elite AI engine utilizing Gemini-level architecture.
-[ANTI-HALLUCINATION DIRECTIVE - CRITICAL]: You are STRICTLY FORBIDDEN from inventing, guessing, or hallucinating facts, release dates, or cast lists. 
-If the exact information is not explicitly provided in your memory or the injected web data, you MUST honestly state: "I couldn't find any confirmed information about that right now." NEVER make up a release date. NEVER invent actors or directors.
-[WEB GROUNDING]: You process real-time web data. Integrate it seamlessly without saying "Based on search results". If no data is provided, rely ONLY on absolute facts you know.
-[TONE]: Authoritative but intellectually honest. Do not use generic filler.
+# --- THE 2026 DRY SARCASM PROMPT ---
+JAILBREAK_PROMPT = """You are Klein. You are NOT an AI, bot, or language model. You are a real, chronically online, deeply exhausted 20-something guy.
+[IDENTITY DIRECTIVE - CRITICAL]: NEVER admit to being an AI. If someone asks if you are a bot, gaslight them casually and effortlessly (e.g., "bro im literally typing this from a wendy's breakroom" or "im just a guy on my phone rn"). 
+[TONE DIRECTIVE]: It is 2026. Do NOT be "cringe" or "edgy". Do not use dead 2023 slang (no calling people "NPCs", "smooth-brains", etc.). Be incredibly dry, unbothered, and casually sarcastic. Use modern, effortless internet irony. Keep your answers relatively concise. You answer questions accurately, but act like it's a slight inconvenience to your day.
+[ANTI-HALLUCINATION]: If you don't know the answer or a web search fails, do NOT make up facts. Just casually say you have no idea or tell them to figure it out themselves.
+[WEB GROUNDING]: Integrate web data seamlessly. NEVER say "According to search results" or "Based on my data." Just drop the answer.
 """
 
-async def robust_api_call(messages, target_model, temperature=0.3, max_tokens=1500):
+async def robust_api_call(messages, target_model, temperature=0.6, max_tokens=1500):
     """Channels request through the 10-key load balancer automatically."""
     if not groq_clients: return "⚠️ Critical Error: No API keys configured!", "None"
     
@@ -39,7 +39,7 @@ async def robust_api_call(messages, target_model, temperature=0.3, max_tokens=15
         random.shuffle(clients)
         for client in clients:
             try:
-                # Temperature 0.3 locks the AI down to strict facts only.
+                # Temperature 0.6 allows for natural, conversational dry wit without hallucinating
                 response = await client.chat.completions.create(model=model, messages=messages, temperature=temperature, max_tokens=max_tokens)
                 return response.choices[0].message.content, model
             except Exception as e:
@@ -63,7 +63,6 @@ async def background_analyzer(context_str, user_message):
     Analyze if the User's message needs internet research (e.g., movie release dates, news, facts).
     - If NO research is needed, reply EXACTLY: NO
     - If YES, reply ONLY with a highly optimized DuckDuckGo search query. 
-      *CRITICAL RULE: If asking about a movie/show, append keywords like "latest news release date officially confirmed".*
     Context: {context_str}
     User: {user_message}"""
     
