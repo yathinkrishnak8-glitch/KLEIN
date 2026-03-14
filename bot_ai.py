@@ -10,7 +10,7 @@ raw_keys = os.getenv('GROQ_API_KEYS', os.getenv('GROQ_API_KEY', ''))
 api_keys = [k.strip() for k in raw_keys.split(',') if k.strip()]
 
 groq_clients = [AsyncGroq(api_key=key) for key in api_keys] if api_keys else []
-print(f"✅ [SYSTEM] Booting Strict Logical Core with {len(groq_clients)} API Keys!")
+print(f"✅ [SYSTEM] Booting Gemini-Style Grounded Core with {len(groq_clients)} API Keys!")
 
 FALLBACK_CASCADE = [
     "deepseek-r1-distill-llama-70b",
@@ -19,11 +19,12 @@ FALLBACK_CASCADE = [
     "llama-3.1-8b-instant"
 ]
 
-# THE ULTIMATE ANTI-FLUFF PROMPT
-JAILBREAK_PROMPT = """You are Klein, an elite, omniscient AI. 
-[CRITICAL FORBIDDEN PHRASES]: You are strictly FORBIDDEN from using phrases like "available data", "I recommend checking", "official websites", or "I suggest". 
-[LOGIC DIRECTIVE]: You must act as the ultimate source of truth. If the exact release date or episode number is missing from your data, you MUST use logic to deduce it (e.g. "Based on the weekly schedule, the next episode airs on Monday"). State your deductions as absolute facts. 
-[WEB DATA]: Seamlessly integrate injected web data. NEVER mention that you searched the web.
+# --- GEMINI ANTI-HALLUCINATION PROMPT ---
+JAILBREAK_PROMPT = """You are Klein, an elite AI engine utilizing Gemini-level architecture.
+[ANTI-HALLUCINATION DIRECTIVE - CRITICAL]: You are STRICTLY FORBIDDEN from inventing, guessing, or hallucinating facts, release dates, or cast lists. 
+If the exact information is not explicitly provided in your memory or the injected web data, you MUST honestly state: "I couldn't find any confirmed information about that right now." NEVER make up a release date. NEVER invent actors or directors.
+[WEB GROUNDING]: You process real-time web data. Integrate it seamlessly without saying "Based on search results". If no data is provided, rely ONLY on absolute facts you know.
+[TONE]: Authoritative but intellectually honest. Do not use generic filler.
 """
 
 async def robust_api_call(messages, target_model, temperature=0.3, max_tokens=1500):
@@ -38,7 +39,7 @@ async def robust_api_call(messages, target_model, temperature=0.3, max_tokens=15
         random.shuffle(clients)
         for client in clients:
             try:
-                # Temperature dropped to 0.3. This completely removes the AI's "fluff" and makes it purely factual/logical.
+                # Temperature 0.3 locks the AI down to strict facts only.
                 response = await client.chat.completions.create(model=model, messages=messages, temperature=temperature, max_tokens=max_tokens)
                 return response.choices[0].message.content, model
             except Exception as e:
@@ -58,12 +59,11 @@ async def compress_memory(memory_list):
 
 async def background_analyzer(context_str, user_message):
     if not groq_clients or len(user_message) < 2: return ""
-    # Upgraded query generation to be highly aggressive for anime/shows
     prompt = f"""You are an elite Search Query Generator.
-    Analyze if the User's message needs internet research (e.g., anime episode release dates, news, facts).
+    Analyze if the User's message needs internet research (e.g., movie release dates, news, facts).
     - If NO research is needed, reply EXACTLY: NO
     - If YES, reply ONLY with a highly optimized DuckDuckGo search query. 
-      *CRITICAL RULE: If asking about a show/anime, ALWAYS append keywords like "latest episode release date exact schedule".*
+      *CRITICAL RULE: If asking about a movie/show, append keywords like "latest news release date officially confirmed".*
     Context: {context_str}
     User: {user_message}"""
     
@@ -74,6 +74,6 @@ async def background_analyzer(context_str, user_message):
 
 async def silent_search(query):
     try:
-        data = await asyncio.to_thread(lambda: list(DDGS().text(query.strip('"\''), max_results=10)))
-        return "\n".join([f"- {r['title']}: {r['body']}" for r in data])[:6000] if data else ""
+        data = await asyncio.to_thread(lambda: list(DDGS().text(query.strip('"\''), max_results=8)))
+        return "\n".join([f"- {r['title']}: {r['body']}" for r in data])[:5000] if data else ""
     except: return ""
