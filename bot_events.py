@@ -10,7 +10,7 @@ from bot_keepalive import bot_stats
 from bot_utils import send_dev_log
 
 user_cooldowns = {}
-MAX_HISTORY = 40 # The memory compressor handles this safely now
+MAX_HISTORY = 40 
 
 class BotEvents(commands.Cog):
     def __init__(self, bot):
@@ -53,17 +53,19 @@ class BotEvents(commands.Cog):
 
                 # 2. ADAPTIVE MEMORY COMPRESSION
                 memory = await compress_memory(memory)
-
                 context_str = "\n".join([m["content"] for m in memory[-4:] if "content" in m])
 
-                # 3. BACKGROUND SEARCH ANALYZER
+                # 3. BACKGROUND SEARCH ANALYZER (Gemini Grounding Fix)
                 live_context = ""
                 if toggles.get("auto_research", True):
                     search_query = await background_analyzer(context_str, user_text)
                     if search_query:
                         scraped = await silent_search(search_query)
                         if scraped: 
-                            live_context = f"\n\n[LIVE WEB DATA SCRAPED JUST NOW regarding '{search_query}'. Natively integrate this.]\n{scraped}"
+                            live_context = f"\n\n[LIVE WEB DATA SCRAPED JUST NOW regarding '{search_query}'. Natively integrate this. Do NOT hallucinate outside this data.]\n{scraped}"
+                        else:
+                            # If search returns NOTHING, warn the AI so it doesn't lie!
+                            live_context = f"\n\n[SYSTEM NOTE: A web search for '{search_query}' was attempted, but NO relevant information was found. Do NOT invent an answer.]"
 
                 # 4. PROMPT ASSEMBLY
                 ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
@@ -72,13 +74,11 @@ class BotEvents(commands.Cog):
 
                 memory.append({"role": "user", "content": f"[{message.author.display_name}]: {user_text}"})
                 
-                # Safety cap just in case compression fails
                 if len(memory) > MAX_HISTORY: memory = memory[-MAX_HISTORY:]
 
                 # 5. LOAD BALANCED AI CALL
                 reply, _ = await robust_api_call([sys_prompt] + memory, current_model)
                 
-                # DeepSeek logic cleanup
                 if "<think>" in reply and "</think>" in reply: 
                     reply = reply.split("</think>")[-1].strip()
 
