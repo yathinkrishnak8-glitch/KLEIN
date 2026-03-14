@@ -1,5 +1,5 @@
-discord.py
-groq
-flask
 aiohttp
-duckduckgo-search
+discord.py==2.3.2
+groq==0.4.2
+duckduckgo-search==5.3.0b1
+Flask==3.0.2
