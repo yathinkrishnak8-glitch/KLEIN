@@ -118,6 +118,37 @@ class SlashCommands(commands.Cog):
     async def devpanel(self, interaction: discord.Interaction):
         await interaction.response.send_modal(DevLoginModal())
 
+    # --- THE NEW CORE OVERRIDE COMMAND ---
+    @app_commands.command(name="core", description="[DEV] Override the bot's foundational brain directive")
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def set_core(self, interaction: discord.Interaction, directive: str):
+        update_config(interaction.guild_id or interaction.user.id, personality=directive)
+        embed = discord.Embed(title="🧠 CORE DIRECTIVE INJECTED", description=f"The AI brain has been rewritten to:\n\n> *{directive}*", color=0x00FFAA)
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="personality", description="Presets: 'hacker', 'jarvis', 'tsundere', 'uwu' OR type custom bio!")
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def set_personality(self, interaction: discord.Interaction, bio: str):
+        guild_id = interaction.guild_id or interaction.user.id
+        user_input = bio.strip().lower()
+        
+        presets = {
+            "hacker": "You are a rogue elite cyber-hacker named Klein. You use terminal slang, act like you're bypassing mainframes while talking.",
+            "jarvis": "You are an ultra-polite, highly sophisticated British AI butler. You address the user as 'Sir' or 'Madam'.",
+            "tsundere": "You are a classic anime tsundere. You are secretly helpful but act extremely annoyed and frequently use the word 'baka'.",
+            "uwu": "You are an incredibly cute, shy AI girl. You use text emojis like uwu, owo, and stutter occasionally."
+        }
+        
+        if user_input == "default":
+            update_config(guild_id, personality="")
+            await interaction.response.send_message("🧠 **Restored default AI persona.**")
+        elif user_input in presets:
+            update_config(guild_id, personality=presets[user_input])
+            await interaction.response.send_message(f"🎭 **Preset Loaded:** Installed the `{user_input.upper()}` personality core!")
+        else:
+            update_config(guild_id, personality=bio)
+            await interaction.response.send_message(f"🎭 **Custom Persona Updated:** The bot will now act like: `{bio}`")
+
     @app_commands.command(name="info", description="View digital system status terminal")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def info(self, interaction: discord.Interaction):
