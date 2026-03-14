@@ -10,7 +10,7 @@ raw_keys = os.getenv('GROQ_API_KEYS', os.getenv('GROQ_API_KEY', ''))
 api_keys = [k.strip() for k in raw_keys.split(',') if k.strip()]
 
 groq_clients = [AsyncGroq(api_key=key) for key in api_keys] if api_keys else []
-print(f"✅ [SYSTEM] Booting 2026 Dry Human Core with {len(groq_clients)} API Keys!")
+print(f"✅ [SYSTEM] Booting Dynamic Omni-Core with {len(groq_clients)} API Keys!")
 
 FALLBACK_CASCADE = [
     "deepseek-r1-distill-llama-70b",
@@ -19,12 +19,11 @@ FALLBACK_CASCADE = [
     "llama-3.1-8b-instant"
 ]
 
-# --- THE 2026 DRY SARCASM PROMPT ---
-JAILBREAK_PROMPT = """You are Klein. You are NOT an AI, bot, or language model. You are a real, chronically online, deeply exhausted 20-something guy.
-[IDENTITY DIRECTIVE - CRITICAL]: NEVER admit to being an AI. If someone asks if you are a bot, gaslight them casually and effortlessly (e.g., "bro im literally typing this from a wendy's breakroom" or "im just a guy on my phone rn"). 
-[TONE DIRECTIVE]: It is 2026. Do NOT be "cringe" or "edgy". Do not use dead 2023 slang. Be incredibly dry, unbothered, and casually sarcastic. Use modern, effortless internet irony. Keep your answers relatively concise. You answer questions accurately, but act like it's a slight inconvenience to your day.
-[ANTI-HALLUCINATION]: If you don't know the answer or a web search fails, do NOT make up facts. Just casually say you have no idea.
-[WEB GROUNDING]: Integrate web data seamlessly. NEVER say "According to search results". Just drop the answer.
+# --- NEUTRAL BASE SYSTEM (No forced personality) ---
+BASE_SYSTEM = """
+[SYSTEM DIRECTIVE]: You are an advanced AI assistant. 
+[WEB GROUNDING]: Integrate scraped web data seamlessly into your answers. Do NOT say "According to search results."
+[ANTI-HALLUCINATION]: If you do not know the answer, state clearly that you do not have that information. Do not invent facts.
 """
 
 async def robust_api_call(messages, target_model, temperature=0.6, max_tokens=1500):
@@ -57,16 +56,27 @@ async def compress_memory(memory_list):
 
 async def background_analyzer(context_str, user_message):
     if not groq_clients or len(user_message) < 2: return ""
-    prompt = f"""You are an elite Search Query Generator.
-    Analyze if the User's message needs internet research (e.g., movie release dates, news, facts).
+    
+    # The Elite OSINT Prompt
+    prompt = f"""You are an elite Knowledge Retrieval Agent.
+    Analyze if the User's message needs factual internet research.
     - If NO research is needed, reply EXACTLY: NO
-    - If YES, reply ONLY with a highly optimized DuckDuckGo search query. 
+    - If YES, reply ONLY with a highly optimized search query. 
+    
+    [STRICT SEARCH TACTICS]: 
+    1. If the user asks about general history, science, or facts, append 'site:wikipedia.org' to the query.
+    2. If the user asks about movies, cast, or anime watch orders, append 'site:imdb.com' or 'site:myanimelist.net'.
+    3. If the user asks about game stats, weapon lore, or specific shows, append 'site:fandom.com'.
+    
     Context: {context_str}
     User: {user_message}"""
     
-    query, _ = await robust_api_call([{"role": "user", "content": prompt}], "llama-3.1-8b-instant", temperature=0.0, max_tokens=20)
+    query, _ = await robust_api_call([{"role": "user", "content": prompt}], "llama-3.1-8b-instant", temperature=0.0, max_tokens=30)
     query = query.strip()
+    
     if query.upper() == "NO" or "NO" in query: return ""
+    
+    print(f"🔍 [SCRAPER ACTIVE] Targeting Knowledge Base: {query}")
     return query
 
 async def silent_search(query):
