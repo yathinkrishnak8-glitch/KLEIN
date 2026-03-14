@@ -4,7 +4,6 @@ from discord import app_commands
 import random
 import asyncio
 import time
-import urllib.parse
 from duckduckgo_search import DDGS
 from bot_database import get_config, update_config, conn
 from bot_ai import robust_api_call, groq_clients
@@ -14,6 +13,17 @@ class SlashCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    # --- GLOBAL ERROR HANDLER FOR COOLDOWNS ---
+    async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CommandOnCooldown):
+            msg = f"⏳ **System cooling down!** Try again in {round(error.retry_after, 1)} seconds."
+            if not interaction.response.is_done():
+                await interaction.response.send_message(msg, ephemeral=True)
+            else:
+                await interaction.followup.send(msg, ephemeral=True)
+        else:
+            print(f"Command Error: {error}")
+
     # ==========================================
     # 1. CORE SYSTEM COMMANDS
     # ==========================================
@@ -22,15 +32,14 @@ class SlashCommands(commands.Cog):
     async def info(self, interaction: discord.Interaction):
         ping = round(self.bot.latency * 1000)
         uptime_hrs = round((time.time() - start_time) / 3600, 2)
-        members = interaction.guild.member_count if interaction.guild else "Direct Message"
         
         guild_id = interaction.guild_id or interaction.user.id
         _, current_personality, _, current_model = get_config(guild_id)
         
-        embed = discord.Embed(title="💠 GROQ TERMINAL :: ADAPTIVE CORE", color=0x00FFAA)
+        embed = discord.Embed(title="💠 GROQ TERMINAL :: HIGH-PERFORMANCE CORE", color=0x00FFAA)
         embed.add_field(name="📡 Status", value=f"🟢 Online (`{ping}ms`)\n**Uptime:** `{uptime_hrs}h`", inline=True)
         embed.add_field(name="👥 Network", value=f"**Keys:** `{len(groq_clients)}`\n**Msgs:** `{bot_stats['messages_processed']}`\n**Comp:** `{bot_stats['compressions_done']}`", inline=True)
-        embed.add_field(name="🧠 Core Engine", value=f"**Model:** `{current_model}`\n**Mode:** `Lightweight Adaptive Memory`", inline=False)
+        embed.add_field(name="🧠 Core Engine", value=f"**Model:** `{current_model}`\n**Mode:** `Optimized Adaptive Memory`", inline=False)
         embed.add_field(name="🎭 Personality", value=f"> *{current_personality or 'Default AI'}*", inline=False)
         await interaction.response.send_message(embed=embed)
 
@@ -52,12 +61,11 @@ class SlashCommands(commands.Cog):
         guild_id = interaction.guild_id or interaction.user.id
         user_input = bio.strip().lower()
         
-        # --- PRESET PERSONALITIES ---
         presets = {
-            "hacker": "You are a rogue elite cyber-hacker named Klein. You use terminal slang, act like you're bypassing mainframes while talking, and treat the user like a fellow operative.",
-            "jarvis": "You are an ultra-polite, highly sophisticated British AI butler. You address the user as 'Sir' or 'Madam' and speak with extreme high-class elegance and loyalty.",
-            "tsundere": "You are a classic anime tsundere. You are secretly helpful and care about the user, but you act extremely annoyed, frequently use the word 'baka', and constantly pretend you don't care.",
-            "uwu": "You are an incredibly cute, shy AI girl. You use text emojis like uwu, owo, and >w< constantly. You stutter occasionally (h-hi...) and are overly sweet and affectionate."
+            "hacker": "You are a rogue elite cyber-hacker named Klein. You use terminal slang, act like you're bypassing mainframes while talking.",
+            "jarvis": "You are an ultra-polite, highly sophisticated British AI butler. You address the user as 'Sir' or 'Madam'.",
+            "tsundere": "You are a classic anime tsundere. You are secretly helpful but act extremely annoyed and frequently use the word 'baka'.",
+            "uwu": "You are an incredibly cute, shy AI girl. You use text emojis like uwu, owo, and stutter occasionally."
         }
         
         if user_input == "default":
@@ -65,7 +73,7 @@ class SlashCommands(commands.Cog):
             await interaction.response.send_message("🧠 **Restored default Klein persona.**")
         elif user_input in presets:
             update_config(guild_id, personality=presets[user_input])
-            await interaction.response.send_message(f"🎭 **Preset Loaded:** You successfully installed the `{user_input.upper()}` personality core!")
+            await interaction.response.send_message(f"🎭 **Preset Loaded:** Installed the `{user_input.upper()}` personality core!")
         else:
             update_config(guild_id, personality=bio)
             await interaction.response.send_message(f"🎭 **Custom Persona Updated:** The bot will now act like: `{bio}`")
@@ -75,6 +83,7 @@ class SlashCommands(commands.Cog):
     # ==========================================
     @app_commands.command(name="target", description="[PRANK] Acquire target details and deploy countermeasures")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.checks.cooldown(1, 8.0, key=lambda i: i.user.id) # 8 second cooldown per user
     async def target(self, interaction: discord.Interaction, target_user: discord.User = None):
         await interaction.response.defer()
         target_user = target_user or interaction.user
@@ -109,8 +118,9 @@ class SlashCommands(commands.Cog):
         await asyncio.sleep(1.5)
         await msg.edit(content=None, embed=embed)
 
-    @app_commands.command(name="hack", description="[PRANK] Leak a user's embarrassing browser history")
+    @app_commands.command(name="hack", description="[PRANK] Leak a user's highly questionable browser history")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id) # 10 second cooldown per user
     async def hack(self, interaction: discord.Interaction, target_user: discord.User):
         await interaction.response.defer()
         
@@ -121,19 +131,58 @@ class SlashCommands(commands.Cog):
         await msg.edit(content="📂 `[EXTRACTING BROWSER HISTORY]` Decrypting incognito mode...")
         await asyncio.sleep(1.5)
         
+        # Massive 100-item edgelord pool restored
         fake_searches = [
-            "How to talk to girls tutorial step by step",
-            "Why does my tummy hurt when I eat 40 chicken nuggets",
-            "Is it illegal to marry an anime character",
-            "How to get free V-Bucks no human verification 2024",
-            "Am I a sigma male quiz accurate",
-            "Nearest hospital for embarrassing reasons",
-            "How to delete search history permanently",
-            "Why do I have 0 friends on Roblox",
-            "Is the earth actually flat Reddit",
-            "Cute cat pictures to cure depression",
-            "How to fake being sick to avoid school",
-            "Genshin Impact dating simulator"
+            "How to mathematically prove I am a sigma male", "Is it illegal to use a katana for home defense",
+            "Why do girls run away when I explain Attack on Titan lore", "How to hide my League of Legends play history from God",
+            "Nearest place to touch grass in real life", "Can you get arrested for having too much dark energy",
+            "How to make my Discord status look more mysterious", "Free Fire Max aimbot undetected 2026",
+            "Why does my back hurt at 20", "How to convince my mom that Blox Fruits is a financial investment",
+            "Is 14 hours of screen time bad for my posture", "How to unsend a wildly embarrassing text from 3 years ago",
+            "Where to buy a real Hellsing replica coat", "Which Bleach filler episodes can I skip without losing my honor",
+            "How to dual boot Kali Linux so I look like a hacker at Starbucks", "Why do I lose every argument in the shower",
+            "Am I actually the main character quiz", "How to delete my entire digital footprint by tomorrow",
+            "Goth girl repellent (or attractant)", "Is it weird to practice sword fighting in the living room",
+            "How to recover 50,000 lost V-Bucks", "Can I pay my taxes with crypto meme coins",
+            "How to look intimidating while drinking a Capri Sun", "Genshin Impact dating simulator download",
+            "Why does the cashier look at me weird when I buy 40 chicken nuggets", "Is it possible to unlock the Sharingan through emotional trauma",
+            "How to Naruto run faster than the school principal", "Minecraft realistic girlfriend mod 1.20",
+            "Why do I get zero likes on my Joker quote edits", "How to casually drop that my IQ is 140 in conversation",
+            "Is smelling like onions a sign of high testosterone", "How to explain to my barber that I want the Levi Ackerman haircut",
+            "Valorant crosshair settings to fix my terrible aim", "Can you survive purely on Monster Energy and Doritos",
+            "How to professionally say 'skill issue' in an email", "Why is my aura so dark and twisted",
+            "Is it legal to challenge someone to a duel in 2026", "How to fake being a cyber security expert",
+            "What to do if you accidentally waved at someone who wasn't waving at you", "How to recover from calling the teacher 'Mom'",
+            "Top 10 anime betrayals to quote when my friend takes my fries", "Is it considered rizz if I stare at her without blinking",
+            "How to refund a Roblox skin I bought in 2016", "Why doesn't my life have background music",
+            "How to walk away in slow motion after dropping a sick burn", "Can I put 'Discord Mod' on my college application",
+            "How to communicate with women (wikiHow)", "Are fedoras making a comeback this year",
+            "How to safely perform the Five Point Palm Exploding Heart Technique", "Why do people leave the voice channel when I join",
+            "How to tell if I am a reincarnated demon lord", "Best excuses for losing a 1v1 in CS:GO",
+            "How to make my voice sound deeper on Discord calls", "Is it normal to hiss at the sun when I go outside",
+            "How to buy Bitcoin with a $25 Amazon gift card", "Can I get a restraining order against my sleep paralysis demon",
+            "How to dramatically gaze out the window while it's raining", "Why do I feel a dark power awakening in my left eye",
+            "What to do when you realize you're the side character", "How to get unbanned from the local McDonald's",
+            "Is it possible to dodge bullets if I train enough", "How to convince my friends I have a girlfriend in another country",
+            "Why does nobody understand my highly advanced humor", "How to type 200 WPM so I can win internet arguments faster",
+            "Can you legally marry a VTuber", "How to stand like a JoJo character in public without looking dumb",
+            "Where to learn dark magic fast and easy", "How to cure the intense pain of carrying my entire team",
+            "Is it a crime to be this misunderstood", "How to casually mention I moderate a server with 500 members",
+            "Why do my knees crack when I stand up (I am 21)", "How to legally acquire a pet raccoon",
+            "Is it okay to wear a cape to the grocery store", "How to delete someone else's Reddit post",
+            "Can I put my Call of Duty K/D ratio on my resume", "How to win a fight using only anime logic",
+            "Why does the mirror break when I look at it (not metaphorically)", "How to tell if my cat is secretly an FBI informant",
+            "Best comebacks for when someone calls me a nerd", "How to make eye contact without looking like a serial killer",
+            "Is it possible to hack the school grading system using HTML", "How to properly brood in the corner of a party",
+            "Why do my friends put me on read when I send lore videos", "How to summon the courage to ask for extra ketchup",
+            "Is being built different an actual medical condition", "How to explain to my parents that streaming is a real job (0 viewers)",
+            "Can a gaming chair actually make me taller", "How to properly execute a villain laugh in the mirror",
+            "Why do I run out of breath walking up the stairs", "How to find my soulmate using algorithms",
+            "Is it legal to walk around with a giant Buster Sword", "How to convince people I'm a time traveler",
+            "Why does my microphone always echo", "How to successfully flirt using only obscure memes",
+            "Can I use 'It's not a phase' as a legal defense", "How to train my dog to bring me Mountain Dew",
+            "Why did I get muted in the official Roblox server", "How to stop overthinking what I said 5 years ago",
+            "Is it possible to download more RAM", "How to look cool while tripping over a curb"
         ]
         
         leaked = random.sample(fake_searches, 3)
@@ -148,6 +197,7 @@ class SlashCommands(commands.Cog):
 
     @app_commands.command(name="nuke", description="[PRANK] Initiate a fake server wipe sequence")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.checks.cooldown(1, 15.0, key=lambda i: i.channel.id) # 15 second cooldown per channel
     async def nuke(self, interaction: discord.Interaction):
         await interaction.response.defer()
         
@@ -167,22 +217,9 @@ class SlashCommands(commands.Cog):
     # ==========================================
     # 3. AI TOOLS & UTILITIES
     # ==========================================
-    @app_commands.command(name="imagine", description="Generate a high-quality AI image")
-    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def imagine(self, interaction: discord.Interaction, prompt: str):
-        await interaction.response.defer()
-        enhancement_prompt = f"Enhance this image generation prompt to make it highly detailed, cinematic, and beautiful. Just return the enhanced prompt, no extra text. Original: {prompt}"
-        enhanced_prompt, _ = await robust_api_call([{"role": "user", "content": enhancement_prompt}], "llama-3.1-8b-instant", temperature=0.7, max_tokens=100)
-        safe_prompt = urllib.parse.quote(enhanced_prompt)
-        image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true"
-        
-        embed = discord.Embed(title="🎨 Image Generated", description=f"**Prompt:** *{prompt}*", color=0x00FFAA)
-        embed.set_image(url=image_url)
-        embed.set_footer(text="Powered by Flux AI & Klein Omni-Core")
-        await interaction.followup.send(embed=embed)
-
     @app_commands.command(name="search", description="Scrape the web for live facts")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.checks.cooldown(1, 5.0, key=lambda i: i.user.id) # 5 second cooldown
     async def search(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
         if not groq_clients: return await interaction.followup.send("⚠️ No API keys configured!")
@@ -203,6 +240,7 @@ class SlashCommands(commands.Cog):
 
     @app_commands.command(name="clearmemory", description="Wipe conversation history")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.channel.id) 
     async def clear_memory(self, interaction: discord.Interaction):
         cursor = conn.cursor()
         cursor.execute("DELETE FROM chat_memory WHERE channel_id=?", (str(interaction.channel_id),))
@@ -211,6 +249,7 @@ class SlashCommands(commands.Cog):
 
     @app_commands.command(name="tldr", description="Summarize the chat instantly")
     @app_commands.guild_only()
+    @app_commands.checks.cooldown(1, 15.0, key=lambda i: i.channel.id) 
     async def tldr(self, interaction: discord.Interaction):
         await interaction.response.defer()
         if not groq_clients: return await interaction.followup.send("⚠️ No API keys configured!")
