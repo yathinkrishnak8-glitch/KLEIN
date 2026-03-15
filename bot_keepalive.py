@@ -10,12 +10,12 @@ bot_stats = {"messages_processed": 0, "compressions_done": 0, "api_calls": 0}
 
 # Fallen Angel & Spatial Themes
 ui_config = {
-    "avatar_url": "https://i.imgur.com/8Qz9f4u.png", # Abstract dark halo/core
     "login_bg": "https://images.unsplash.com/photo-1508244243681-42cb06a382ca?q=80&w=2560&auto=format&fit=crop", # Dark misty clouds
     "ui_bg": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2048&auto=format&fit=crop" # Deep spatial nebula
 }
 
 ADMIN_PASSWORD = "11222333444455555"
+DEV_PASSWORD = "mr_yaen"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -52,14 +52,14 @@ HTML_TEMPLATE = """
 
         h1, h2, h3 { font-family: 'Cinzel', serif; }
 
-        /* LIVE BACKGROUNDS (CSS MOTION GRAPHICS) */
+        /* LIVE BACKGROUNDS */
         .bg-layer { position: fixed; inset: 0; background-size: cover; background-position: center; z-index: -3; transition: opacity 1s; }
         .bg-login { background-image: url('{{ login_bg }}'); }
         .bg-ui { background-image: url('{{ ui_bg }}'); opacity: 0; }
         .logged-in .bg-login { opacity: 0; }
         .logged-in .bg-ui { opacity: 1; }
 
-        /* SPATIAL DRIFT & ASH FALL ANIMATIONS */
+        /* SPATIAL DRIFT ANIMATIONS */
         .particles { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
         .logged-in .particles { animation: spatialDrift 60s linear infinite; background: radial-gradient(circle, transparent 20%, var(--obsidian) 120%), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="0.5" fill="%23ffffff" opacity="0.3"/></svg>') repeat; background-size: 200px 200px; }
         @keyframes spatialDrift { 0% { background-position: 0 0; } 100% { background-position: 1000px 500px; } }
@@ -114,7 +114,7 @@ HTML_TEMPLATE = """
         .t-red { color: var(--crimson); text-shadow: 0 0 5px var(--crimson); }
         .t-gold { color: var(--gold); }
 
-        /* MOBILE OVERRIDES (Adaptive UI) */
+        /* MOBILE OVERRIDES */
         @media (max-width: 850px) {
             #main-container { grid-template-columns: 1fr; height: 100vh; width: 100%; border-radius: 0; padding: 15px; padding-bottom: 100px; border: none; }
             .sidebar { display: none; } 
@@ -155,6 +155,9 @@ HTML_TEMPLATE = """
         <button class="mobile-btn active" onclick="tab('overview')"><i class="fa-solid fa-crosshairs"></i></button>
         <button class="mobile-btn" onclick="tab('database')"><i class="fa-solid fa-book-skull"></i></button>
         <button class="mobile-btn" onclick="tab('terminal')"><i class="fa-solid fa-terminal"></i></button>
+        {% if role == 'dev' %}
+        <button class="mobile-btn" style="color: var(--gold);" onclick="tab('dev')"><i class="fa-solid fa-shield-halved"></i></button>
+        {% endif %}
     </div>
 
     <!-- DASHBOARD -->
@@ -168,6 +171,9 @@ HTML_TEMPLATE = """
             <button class="nav-link active" onclick="tab('overview')"><i class="fa-solid fa-crosshairs"></i> Halo Analytics</button>
             <button class="nav-link" onclick="tab('database')"><i class="fa-solid fa-book-skull"></i> Abyssal Memory</button>
             <button class="nav-link" onclick="tab('terminal')"><i class="fa-solid fa-terminal"></i> Celestial Logs</button>
+            {% if role == 'dev' %}
+            <button class="nav-link" style="color: var(--gold); border-color: var(--gold);" onclick="tab('dev')"><i class="fa-solid fa-code"></i> Divine Override</button>
+            {% endif %}
             <form action="/logout" method="POST" style="margin-top: auto;">
                 <button type="submit" class="nav-link" style="color: var(--crimson); border-color: transparent;"><i class="fa-solid fa-person-falling"></i> Descend (Logout)</button>
             </form>
@@ -208,6 +214,20 @@ HTML_TEMPLATE = """
                     <div>[ABYSS] Terminal access granted to Master.</div>
                 </div>
             </div>
+
+            <!-- DEV TAB (SECRET) -->
+            {% if role == 'dev' %}
+            <div id="dev" class="tab-pane" style="display:none;">
+                <h3 style="margin-bottom: 25px; color: var(--gold); font-family: 'Cinzel', serif;">Divine Override Panel</h3>
+                <div class="card glass" style="border-color: var(--gold);">
+                    <form action="/update_dev" method="POST">
+                        <input type="text" name="login_bg" value="{{ login_bg }}" placeholder="Login Background URL" style="border-color: var(--gold);">
+                        <input type="text" name="ui_bg" value="{{ ui_bg }}" placeholder="UI Background URL" style="border-color: var(--gold);">
+                        <button type="submit" class="btn-auth" style="background: linear-gradient(135deg, #b8860b, #ffd700); color: #000; text-shadow: none; box-shadow: 0 10px 30px rgba(212,175,55,0.3);">Reshape Reality</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -217,7 +237,7 @@ HTML_TEMPLATE = """
             document.querySelectorAll('.nav-link, .mobile-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(name).style.display = 'block';
             
-            const titles = { 'overview': 'Halo Analytics', 'database': 'Abyssal Memory', 'terminal': 'Celestial Logs' };
+            const titles = { 'overview': 'Halo Analytics', 'database': 'Abyssal Memory', 'terminal': 'Celestial Logs', 'dev': 'Divine Override' };
             document.getElementById('tab-title').innerText = titles[name];
             
             const btns = document.querySelectorAll(`[onclick="tab('${name}')"]`);
@@ -243,6 +263,7 @@ def home():
     uptime = round((time.time() - start_time) / 3600, 2)
     return render_template_string(HTML_TEMPLATE, 
         logged_in=session.get('logged_in'), 
+        role=session.get('role', 'user'),
         uptime=uptime, 
         messages=bot_stats['messages_processed'], 
         login_bg=ui_config['login_bg'], 
@@ -251,11 +272,25 @@ def home():
 @app.route('/login', methods=['POST'])
 def login():
     pw = request.form.get('password', '').strip()
-    if pw == ADMIN_PASSWORD: session['logged_in'] = True
+    if pw == ADMIN_PASSWORD:
+        session['logged_in'] = True
+        session['role'] = 'admin'
+    elif pw == DEV_PASSWORD:
+        session['logged_in'] = True
+        session['role'] = 'dev'
     return redirect('/')
 
 @app.route('/logout', methods=['POST'])
-def logout(): session.clear(); return redirect('/')
+def logout(): 
+    session.clear()
+    return redirect('/')
+
+@app.route('/update_dev', methods=['POST'])
+def update_dev():
+    if session.get('role') == 'dev':
+        ui_config['login_bg'] = request.form.get('login_bg', ui_config['login_bg']).strip()
+        ui_config['ui_bg'] = request.form.get('ui_bg', ui_config['ui_bg']).strip()
+    return redirect('/')
 
 def run_server(): 
     port = int(os.environ.get("PORT", 8080))
