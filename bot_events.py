@@ -1,12 +1,12 @@
 import discord
 from discord.ext import commands, tasks
 import time, json, asyncio
-from datetime import datetime
 from bot_database import get_config, conn
 from bot_ai import robust_api_call, compress_memory, BASE_SYSTEM
 from bot_keepalive import bot_stats
 
 user_cooldowns = {}
+channel_locks = {} # Prevents memory corruption when people talk at the exact same time
 MAX_HISTORY = 40 
 
 class BotEvents(commands.Cog):
@@ -35,13 +35,6 @@ class BotEvents(commands.Cog):
         await self.bot.wait_until_ready()
 
     @commands.Cog.listener()
-    async def on_message_delete(self, message):
-        if message.author.bot: return
-        data = json.dumps({"content": message.content, "author": message.author.name})
-        conn.cursor().execute("REPLACE INTO snipes (channel_id, data) VALUES (?, ?)", (str(message.channel.id), data))
-        conn.commit()
-
-    @commands.Cog.listener()
     async def on_message(self, message):
         if message.author == self.bot.user: return
         
@@ -59,31 +52,41 @@ class BotEvents(commands.Cog):
         if self.bot.user.mentioned_in(message) or is_active or isinstance(message.channel, discord.DMChannel):
             bot_stats["messages_processed"] += 1
             guild_id = message.guild.id if message.guild else message.author.id
-            toggles, custom_persona, _, current_model = get_config(guild_id)
             
-            async with message.channel.typing():
-                c.execute("SELECT history FROM chat_memory WHERE channel_id=?", (str(message.channel.id),))
-                row = c.fetchone()
-                raw_memory = json.loads(row[0]) if row else []
-                memory = [msg for msg in raw_memory if isinstance(msg, dict) and "role" in msg and "content" in msg]
+            _, custom_persona, _, current_model = get_config(guild_id)
+            if current_model is None or current_model == "":
+                current_model = "llama-3.3-70b-versatile"
+            
+            # Create a lock for this specific channel if it doesn't exist
+            if message.channel.id not in channel_locks:
+                channel_locks[message.channel.id] = asyncio.Lock()
 
-                memory = await compress_memory(memory)
-                
-                core_directive = custom_persona if custom_persona else "You are a highly intelligent AI named YoAI."
-                sys_prompt = {"role": "system", "content": f"[CORE OVERRIDE]: {core_directive}\n\n{BASE_SYSTEM}"}
+            # Ensure messages are processed sequentially so the AI sees the exact conversation order
+            async with channel_locks[message.channel.id]:
+                async with message.channel.typing():
+                    c.execute("SELECT history FROM chat_memory WHERE channel_id=?", (str(message.channel.id),))
+                    row = c.fetchone()
+                    raw_memory = json.loads(row[0]) if row else []
+                    memory = [msg for msg in raw_memory if isinstance(msg, dict) and "role" in msg and "content" in msg]
 
-                memory.append({"role": "user", "content": f"[{message.author.display_name}]: {user_text}"})
-                if len(memory) > MAX_HISTORY: memory = memory[-MAX_HISTORY:]
+                    memory = await compress_memory(memory)
+                    
+                    core_directive = custom_persona if custom_persona else "You are Klein."
+                    sys_prompt = {"role": "system", "content": f"[MASTER OVERRIDE]: {core_directive}\n\n{BASE_SYSTEM}"}
 
-                reply, _ = await robust_api_call([sys_prompt] + memory, current_model)
-                if "<think>" in reply and "</think>" in reply: 
-                    reply = reply.split("</think>")[-1].strip()
+                    memory.append({"role": "user", "content": f"[User: {message.author.display_name}]: {user_text}"})
+                    if len(memory) > MAX_HISTORY: memory = memory[-MAX_HISTORY:]
 
-                memory.append({"role": "assistant", "content": reply})
-                c.execute("REPLACE INTO chat_memory (channel_id, history) VALUES (?, ?)", (str(message.channel.id), json.dumps(memory)))
-                conn.commit()
-                
-                for i in range(0, len(reply), 1995): await message.reply(reply[i:i+1995])
+                    reply, _ = await robust_api_call([sys_prompt] + memory, current_model)
+                    
+                    if "<think>" in reply and "</think>" in reply: 
+                        reply = reply.split("</think>")[-1].strip()
+
+                    memory.append({"role": "assistant", "content": reply})
+                    c.execute("REPLACE INTO chat_memory (channel_id, history) VALUES (?, ?)", (str(message.channel.id), json.dumps(memory)))
+                    conn.commit()
+                    
+                    for i in range(0, len(reply), 1995): await message.reply(reply[i:i+1995])
 
 async def setup(bot):
     await bot.add_cog(BotEvents(bot))
