@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import asyncio, time
+import time
 from bot_database import update_config, conn
 from bot_ai import groq_clients
 from bot_keepalive import bot_stats, start_time
@@ -84,64 +84,6 @@ class SlashCommands(commands.Cog):
         conn.cursor().execute("DELETE FROM active_channels WHERE channel_id=?", (str(interaction.channel_id),))
         conn.commit()
         await interaction.response.send_message(f"🚫 Auto-chat **revoked** for <#{interaction.channel_id}>. Klein is returning to slumber.")
-
-    # --- 🎭 HQ REALISTIC PRANK SUITE ---
-    @app_commands.command(name="hack", description="[PRANK] Simulate a highly realistic deep-web breach on a user")
-    @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def hack(self, interaction: discord.Interaction, target: discord.User):
-        await interaction.response.send_message(f"📡 `[UPLINK ESTABLISHED]` Bypassing Cloudflare protocols for {target.mention}...")
-        await asyncio.sleep(2)
-        await interaction.edit_original_response(content=f"🔓 `[FIREWALL BREACHED]` Extracting local browser cache from {target.name}'s IPv6 address...")
-        await asyncio.sleep(2)
-        await interaction.edit_original_response(content=f"📂 `[DECRYPTING PACKETS]` Found 4 hidden folders. Uploading to public mainframe...")
-        await asyncio.sleep(2.5)
-        history = [
-            "How to get free V-Bucks no scam 2026", 
-            "Why do I have 0 rizz?", 
-            "Is it illegal to use aimbot in Roblox?",
-            "How to talk to girls (WikiHow)"
-        ]
-        embed = discord.Embed(title="🛑 DATA BREACH SECURED", description=f"Extracted search logs for **{target.name}**:", color=0xff003c)
-        embed.add_field(name="Private Browser History", value="\n".join([f"🔍 *{s}*" for s in history]))
-        embed.set_thumbnail(url=target.display_avatar.url)
-        embed.set_footer(text="Klein Cyber-Sec Unit")
-        await interaction.edit_original_response(content=None, embed=embed)
-
-    @app_commands.command(name="target", description="[PRANK] Lock an orbital strike onto a user")
-    @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def target(self, interaction: discord.Interaction, target: discord.User):
-        await interaction.response.send_message(f"🛰️ `[SATELLITE LINK]` Triangulating cellular signal for {target.mention}...")
-        await asyncio.sleep(2)
-        await interaction.edit_original_response(content=f"🎯 `[LOCK ACQUIRED]` Coordinates locked. Routing targeting data through proxy mesh...")
-        await asyncio.sleep(2)
-        embed = discord.Embed(title="⚠️ TACTICAL STRIKE IMMINENT", description=f"Orbital payload aligned on **{target.name}**.", color=0xff0000)
-        embed.add_field(name="Status", value="Payload dropped. Impact in 3... 2... 1...")
-        embed.set_thumbnail(url=target.display_avatar.url)
-        await interaction.edit_original_response(content=None, embed=embed)
-        await asyncio.sleep(3)
-        
-        embed.color = 0x555555
-        embed.title = "❌ STRIKE ABORTED"
-        embed.description = f"Orbital strike on **{target.name}** failed."
-        embed.clear_fields()
-        embed.add_field(name="Error Log", value="Target was actively playing Roblox. Strike aborted out of pity.")
-        await interaction.edit_original_response(embed=embed)
-
-    @app_commands.command(name="nuke", description="[PRANK] Simulate a highly destructive server wipe")
-    @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def nuke(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f"☢️ `[SYSTEM WARNING]` Abyssal Nuke sequence initiated by {interaction.user.mention}.")
-        await asyncio.sleep(2)
-        await interaction.edit_original_response(content="🔥 `[OVERRIDE]` Bypassing Discord API rate limits... Preparing to delete all channels.")
-        await asyncio.sleep(2.5)
-        await interaction.edit_original_response(content="💀 `[CRITICAL]` Injecting payload. Say goodbye to the server in 3 seconds.")
-        await asyncio.sleep(3)
-        
-        embed = discord.Embed(title="🛡️ NUKE FAILED", description="Klein's mom said he has to go to bed. Server spared.", color=0x00ff00)
-        await interaction.edit_original_response(content=None, embed=embed)
 
 async def setup(bot):
     await bot.add_cog(SlashCommands(bot))
