@@ -8,10 +8,10 @@ app.secret_key = os.urandom(24)
 start_time = time.time()
 bot_stats = {"messages_processed": 0, "compressions_done": 0, "api_calls": 0}
 
-# Fallen Angel & Spatial Themes
+# Fallen Angel / Spatial Config
 ui_config = {
-    "login_bg": "https://images.unsplash.com/photo-1508244243681-42cb06a382ca?q=80&w=2560&auto=format&fit=crop", # Dark misty clouds
-    "ui_bg": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2048&auto=format&fit=crop" # Deep spatial nebula
+    "login_bg": "https://images.unsplash.com/photo-1508244243681-42cb06a382ca?q=80&w=2560&auto=format&fit=crop",
+    "ui_bg": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2048&auto=format&fit=crop"
 }
 
 ADMIN_PASSWORD = "11222333444455555"
@@ -32,9 +32,9 @@ HTML_TEMPLATE = """
             --blood: #8a0303;
             --gold: #d4af37;
             --silver: #e0e0e0;
-            --obsidian: #050508;
-            --glass-bg: rgba(5, 5, 8, 0.5);
-            --glass-border: rgba(255, 0, 60, 0.3);
+            --obsidian: #030305;
+            --glass: rgba(5, 5, 8, 0.6);
+            --border: rgba(255, 0, 60, 0.25);
         }
 
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
@@ -50,99 +50,96 @@ HTML_TEMPLATE = """
             font-family: 'Outfit', sans-serif;
         }
 
-        h1, h2, h3 { font-family: 'Cinzel', serif; }
+        h1, h2, h3 { font-family: 'Cinzel', serif; letter-spacing: 2px; }
 
-        /* LIVE BACKGROUNDS (CSS MOTION GRAPHICS) */
-        .bg-layer { position: fixed; inset: 0; background-size: cover; background-position: center; z-index: -3; transition: opacity 1s; }
-        .bg-login { background-image: url('{{ login_bg }}'); }
-        .bg-ui { background-image: url('{{ ui_bg }}'); opacity: 0; }
-        .logged-in .bg-login { opacity: 0; }
-        .logged-in .bg-ui { opacity: 1; }
+        /* NEURAL STARFIELD BACKGROUND */
+        #star-canvas { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+        .bg-img { position: fixed; inset: 0; background-size: cover; background-position: center; z-index: -2; filter: brightness(0.3) contrast(1.2); transition: 1.5s ease; }
 
-        /* SPATIAL DRIFT ANIMATIONS */
-        .particles { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
-        .logged-in .particles { animation: spatialDrift 60s linear infinite; background: radial-gradient(circle, transparent 20%, var(--obsidian) 120%), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="0.5" fill="%23ffffff" opacity="0.3"/></svg>') repeat; background-size: 200px 200px; }
-        @keyframes spatialDrift { 0% { background-position: 0 0; } 100% { background-position: 1000px 500px; } }
-
-        /* LIQUID GLASS W/ OBSIDIAN TINT */
+        /* LIQUID OBSIDIAN GLASS */
         .glass { 
-            background: var(--glass-bg); 
-            border: 1px solid var(--glass-border); 
-            backdrop-filter: blur(25px); 
-            -webkit-backdrop-filter: blur(25px);
-            border-radius: 20px; 
-            box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 0 20px rgba(255, 0, 60, 0.1);
+            background: var(--glass); 
+            border: 1px solid var(--border); 
+            backdrop-filter: blur(35px) saturate(150%);
+            -webkit-backdrop-filter: blur(35px) saturate(150%);
+            border-radius: 24px; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9), inset 0 0 30px rgba(255, 0, 60, 0.05);
+            animation: pulseGlow 8s ease-in-out infinite;
         }
 
-        /* LOGIN SCREEN - FALLEN ANGEL */
-        #login-box { width: 90%; max-width: 420px; padding: 50px 40px; text-align: center; position: relative; animation: celestialDrop 1.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
-        @keyframes celestialDrop { from { opacity: 0; transform: translateY(-50px) scale(0.9); filter: blur(10px); } to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+        @keyframes pulseGlow {
+            0%, 100% { border-color: rgba(255, 0, 60, 0.2); box-shadow: 0 20px 50px rgba(0,0,0,0.9); }
+            50% { border-color: rgba(255, 0, 60, 0.5); box-shadow: 0 20px 60px rgba(255, 0, 60, 0.1); }
+        }
+
+        /* LOGIN: CELESTIAL FALL */
+        #login-box { width: 90%; max-width: 440px; padding: 60px 40px; text-align: center; position: relative; animation: celestialFall 1.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes celestialFall { 0% { opacity:0; transform: translateY(-100px) scale(0.8); filter: blur(20px); } 100% { opacity:1; transform: translateY(0) scale(1); filter: blur(0); } }
         
-        .halo { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); width: 100px; height: 10px; border-radius: 50%; border-top: 2px solid var(--gold); box-shadow: 0 -10px 20px var(--gold); opacity: 0.6; }
+        .halo { position: absolute; top: -40px; left: 50%; transform: translateX(-50%); width: 140px; height: 15px; border-radius: 50%; border-top: 2px solid var(--gold); filter: blur(2px); box-shadow: 0 -15px 30px var(--gold); opacity: 0.5; }
         
-        input { width: 100%; padding: 18px; background: rgba(0,0,0,0.6); border: 1px solid var(--crimson); border-radius: 12px; color: #fff; font-size: 16px; outline: none; margin-bottom: 25px; text-align: center; letter-spacing: 3px; font-family: 'Cinzel', serif; transition: 0.3s; }
-        input:focus { box-shadow: 0 0 25px rgba(255,0,60,0.4); background: rgba(255,0,60,0.05); }
+        input { width: 100%; padding: 20px; background: rgba(0,0,0,0.7); border: 1px solid var(--border); border-radius: 14px; color: #fff; font-size: 16px; outline: none; margin-bottom: 25px; text-align: center; letter-spacing: 5px; font-family: 'Cinzel', serif; transition: 0.4s; }
+        input:focus { border-color: var(--gold); box-shadow: 0 0 30px rgba(212,175,55,0.2); }
         
-        .btn-auth { width: 100%; padding: 18px; background: linear-gradient(135deg, var(--blood), var(--crimson)); color: #fff; border: none; border-radius: 12px; font-weight: 900; cursor: pointer; text-transform: uppercase; letter-spacing: 4px; box-shadow: 0 10px 30px rgba(255,0,60,0.3); font-family: 'Cinzel', serif; transition: 0.4s; position: relative; overflow: hidden; }
-        .btn-auth::after { content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); transition: 0.5s; }
-        .btn-auth:hover::after { left: 100%; }
-        .btn-auth:hover { box-shadow: 0 0 40px var(--crimson); text-shadow: 0 0 10px #fff; }
+        .btn-auth { width: 100%; padding: 20px; background: linear-gradient(135deg, var(--blood), var(--crimson)); color: #fff; border: none; border-radius: 14px; font-weight: 900; cursor: pointer; text-transform: uppercase; letter-spacing: 5px; font-family: 'Cinzel', serif; box-shadow: 0 10px 40px rgba(255,0,60,0.4); transition: 0.5s; overflow: hidden; }
+        .btn-auth:hover { transform: translateY(-3px); box-shadow: 0 0 50px var(--crimson); letter-spacing: 7px; }
 
-        /* DASHBOARD PC STYLES */
-        #main-container { width: 98%; max-width: 1400px; height: 94vh; display: grid; grid-template-columns: 280px 1fr; gap: 20px; padding: 20px; animation: fadeIn 1s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* MAIN DASHBOARD */
+        #main-container { width: 98%; max-width: 1440px; height: 94vh; display: grid; grid-template-columns: 300px 1fr; gap: 25px; padding: 25px; animation: fadeIn 1.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; filter: blur(10px); } to { opacity: 1; filter: blur(0); } }
         
-        .sidebar { display: flex; flex-direction: column; gap: 15px; padding: 25px 20px; }
-        .side-head { text-align: center; margin-bottom: 30px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px; }
-        .side-head h3 { font-size: 28px; color: var(--gold); letter-spacing: 4px; text-shadow: 0 0 15px var(--gold); }
-        .side-head p { color: var(--crimson); font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-top: 5px; }
+        .sidebar { display: flex; flex-direction: column; gap: 15px; padding: 30px 20px; }
+        .side-head { text-align: center; margin-bottom: 40px; }
+        .side-head h3 { font-size: 32px; color: var(--gold); text-shadow: 0 0 20px var(--gold); margin-bottom: 5px; }
+        .side-head p { color: var(--crimson); font-size: 12px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; opacity: 0.8; }
 
-        .nav-link { padding: 16px 20px; border-radius: 12px; background: transparent; color: var(--silver); border: 1px solid transparent; text-align: left; cursor: pointer; font-weight: 400; display: flex; align-items: center; gap: 15px; font-size: 15px; transition: 0.4s; font-family: 'Cinzel', serif; letter-spacing: 1px; }
-        .nav-link.active, .nav-link:hover { background: rgba(255,0,60,0.1); color: #fff; border-color: var(--crimson); box-shadow: inset 0 0 15px rgba(255,0,60,0.2); text-shadow: 0 0 8px #fff; }
+        .nav-link { padding: 18px 25px; border-radius: 15px; background: transparent; color: var(--silver); border: 1px solid transparent; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 18px; font-size: 16px; transition: 0.4s; font-family: 'Cinzel', serif; }
+        .nav-link.active, .nav-link:hover { background: rgba(255,0,60,0.12); color: #fff; border-color: var(--crimson); box-shadow: inset 0 0 20px rgba(255,0,60,0.1); }
 
-        .content { padding: 30px; overflow-y: auto; position: relative; }
-        .content-header { margin-bottom: 40px; border-bottom: 1px solid rgba(255,0,60,0.3); padding-bottom: 15px; }
-        .content-header h2 { font-size: 28px; letter-spacing: 3px; color: #fff; text-shadow: 0 0 15px var(--crimson); }
+        .content { padding: 40px; overflow-y: auto; scrollbar-width: none; }
+        .content-header { margin-bottom: 50px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+        .content-header h2 { font-size: 32px; color: #fff; text-shadow: 0 0 25px var(--crimson); }
 
-        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 25px; }
-        .card { padding: 30px; border-radius: 15px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--gold); position: relative; overflow: hidden; transition: 0.3s; }
-        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(212,175,55,0.1); }
-        .card h1 { font-size: 45px; font-weight: 900; color: #fff; position: relative; z-index: 1; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
-        .card p { font-size: 12px; color: var(--gold); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 1; font-family: 'Outfit', sans-serif; }
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; }
+        .card { padding: 35px; border-radius: 20px; background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-top: 3px solid var(--gold); transition: 0.4s; position: relative; }
+        .card:hover { transform: translateY(-8px); border-color: var(--gold); box-shadow: 0 15px 40px rgba(212,175,55,0.15); }
+        .card h1 { font-size: 50px; color: #fff; font-weight: 900; margin-top: 10px; }
+        .card p { color: var(--gold); font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
 
-        .terminal { margin-top: 35px; background: rgba(5,5,8,0.8); border-radius: 12px; padding: 25px; height: 320px; overflow-y: auto; font-family: 'Fira Code', monospace; font-size: 13px; color: var(--silver); border: 1px solid rgba(255,255,255,0.1); box-shadow: inset 0 0 30px rgba(0,0,0,1); }
-        .t-red { color: var(--crimson); text-shadow: 0 0 5px var(--crimson); }
-        .t-gold { color: var(--gold); }
+        /* LIVE TELEMETRY HEARTBEAT */
+        .heartbeat { position: absolute; top: 20px; right: 20px; width: 10px; height: 10px; background: #00ff88; border-radius: 50%; box-shadow: 0 0 15px #00ff88; animation: heart 1.5s infinite; }
+        @keyframes heart { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } }
 
-        /* MOBILE ADAPTIVE */
-        @media (max-width: 850px) {
-            #main-container { grid-template-columns: 1fr; height: 100vh; width: 100%; border-radius: 0; padding: 15px; padding-bottom: 100px; border: none; }
-            .sidebar { display: none; } 
-            
-            .mobile-nav { position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); width: 92%; height: 75px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; padding: 0 10px; border-radius: 20px; border: 1px solid var(--glass-border); }
-            .mobile-btn { color: var(--silver); font-size: 22px; background: transparent; border: none; transition: 0.4s; }
-            .mobile-btn.active { color: var(--gold); text-shadow: 0 0 15px var(--gold); transform: translateY(-5px) scale(1.1); }
-            
+        .terminal { margin-top: 40px; background: rgba(0,0,0,0.85); border-radius: 18px; padding: 30px; height: 350px; overflow-y: auto; font-family: 'Fira Code', monospace; font-size: 13px; color: var(--silver); border: 1px solid rgba(255,255,255,0.05); box-shadow: inset 0 0 40px #000; line-height: 1.6; }
+        .t-red { color: var(--crimson); text-shadow: 0 0 10px var(--crimson); }
+        .t-gold { color: var(--gold); text-shadow: 0 0 10px var(--gold); }
+
+        /* MOBILE NAV (ADAPTIVE) */
+        @media (max-width: 900px) {
+            #main-container { grid-template-columns: 1fr; height: 100vh; padding: 15px; padding-bottom: 110px; border-radius: 0; border: none; }
+            .sidebar { display: none; }
+            .mobile-nav { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); width: 92%; height: 80px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; border-radius: 25px; border-color: var(--crimson); }
+            .mobile-btn { color: var(--silver); font-size: 26px; background: transparent; border: none; transition: 0.4s; }
+            .mobile-btn.active { color: var(--gold); transform: translateY(-8px); text-shadow: 0 0 20px var(--gold); }
             .content { padding: 15px; }
-            .card h1 { font-size: 36px; }
-            .terminal { height: 400px; }
+            .content-header h2 { font-size: 24px; }
+            .card h1 { font-size: 40px; }
         }
     </style>
 </head>
 <body class="{% if logged_in %}logged-in{% endif %}">
     
-    <div class="bg-layer bg-login"></div>
-    <div class="bg-layer bg-ui"></div>
-    <div class="particles"></div>
+    <div class="bg-img" style="background-image: url('{{ ui_bg if logged_in else login_bg }}');"></div>
+    <canvas id="star-canvas"></canvas>
 
     {% if not logged_in %}
     <div id="login-box" class="glass">
         <div class="halo"></div>
-        <h1 style="letter-spacing: 6px; color: #fff; text-shadow: 0 0 20px var(--crimson);">KLEIN</h1>
-        <p style="color: var(--gold); margin-bottom: 40px; font-size: 11px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase;">Seraph Protocol</p>
+        <h1 style="font-size: 48px; color: #fff; text-shadow: 0 0 30px var(--crimson);">KLEIN</h1>
+        <p style="color: var(--gold); margin-bottom: 45px; font-weight: 800; letter-spacing: 6px;">SERAPH PROTOCOL</p>
         <form action="/login" method="POST">
-            <input type="password" name="password" placeholder="Divine Cipher" required>
-            <button type="submit" class="btn-auth">Awaken</button>
+            <input type="password" name="password" placeholder="DIVINE CIPHER" required>
+            <button type="submit" class="btn-auth">ASCEND</button>
         </form>
     </div>
     {% else %}
@@ -156,7 +153,7 @@ HTML_TEMPLATE = """
 
     <div id="main-container" class="glass">
         <div class="sidebar">
-            <div class="side-head"><h3>KLEIN</h3><p>Abyssal Node Active</p></div>
+            <div class="side-head"><h3>KLEIN</h3><p>ABYSSAL NODE ACTIVE</p></div>
             <button class="nav-link active" onclick="tab('overview')"><i class="fa-solid fa-crosshairs"></i> Halo Analytics</button>
             <button class="nav-link" onclick="tab('database')"><i class="fa-solid fa-book-skull"></i> Abyssal Memory</button>
             <button class="nav-link" onclick="tab('terminal')"><i class="fa-solid fa-terminal"></i> Celestial Logs</button>
@@ -164,7 +161,7 @@ HTML_TEMPLATE = """
             <button class="nav-link" style="color: var(--gold); border-color: var(--gold);" onclick="tab('dev')"><i class="fa-solid fa-code"></i> Divine Override</button>
             {% endif %}
             <form action="/logout" method="POST" style="margin-top: auto;">
-                <button type="submit" class="nav-link" style="color: var(--crimson); border-color: transparent;"><i class="fa-solid fa-person-falling"></i> Logout</button>
+                <button type="submit" class="nav-link" style="color: var(--crimson); border: none;"><i class="fa-solid fa-person-falling"></i> Logout</button>
             </form>
         </div>
 
@@ -173,22 +170,23 @@ HTML_TEMPLATE = """
 
             <div id="overview" class="tab-pane active">
                 <div class="stats-row">
-                    <div class="card glass"><h1>{{ uptime }}h</h1><p>Mortal Time</p></div>
-                    <div class="card glass" style="border-top-color: var(--crimson);"><h1>{{ messages }}</h1><p>Souls Processed</p></div>
-                    <div class="card glass" style="border-top-color: #fff;"><h1>FALLEN</h1><p>Core State</p></div>
+                    <div class="card glass"><h1>{{ uptime }}h</h1><p>Time Elapsed</p></div>
+                    <div class="card glass" style="border-top-color: var(--crimson);"><h1>{{ messages }}</h1><p>Queries Solved</p></div>
+                    <div class="card glass" style="border-top-color: #fff;"><div class="heartbeat"></div><h1>ACTIVE</h1><p>Neural Pulse</p></div>
                 </div>
                 <div class="terminal" id="log-box">
-                    <div>[KLEIN-SYS] <span class="t-red">Protocol: Fallen Angel</span> active.</div>
+                    <div>[SERAPH] <span class="t-red">Protocol: Fallen Angel</span> synchronized.</div>
+                    <div>[KLEIN] 10/10 API Nodes online and ready for deployment.</div>
                 </div>
             </div>
 
             <div id="database" class="tab-pane" style="display:none;">
-                <h3 style="margin-bottom: 25px; color: var(--gold);">Tome of Memory</h3>
-                <div class="card glass" style="border-color: var(--crimson);"><h1>Sealed</h1><p>Fragments Retained</p></div>
+                <h3 style="margin-bottom: 30px; color: var(--gold);">Abyssal Brain Core</h3>
+                <div class="card glass" style="border-color: var(--crimson);"><h1>40 / 40</h1><p>Memory Fragments</p></div>
             </div>
 
             <div id="terminal" class="tab-pane" style="display:none;">
-                <div class="terminal" style="height: 500px;" id="full-term"><div>[ABYSS] Abyssal terminal granted.</div></div>
+                <div class="terminal" style="height: 520px;" id="full-term"><div>[ROOT] Divine shell access granted.</div></div>
             </div>
 
             {% if role == 'dev' %}
@@ -198,7 +196,7 @@ HTML_TEMPLATE = """
                     <form action="/update_dev" method="POST">
                         <input type="text" name="login_bg" value="{{ login_bg }}" placeholder="Login Background URL" style="border-color: var(--gold);">
                         <input type="text" name="ui_bg" value="{{ ui_bg }}" placeholder="UI Background URL" style="border-color: var(--gold);">
-                        <button type="submit" class="btn-auth" style="background: linear-gradient(135deg, #b8860b, #ffd700); color: #000; text-shadow: none;">Reshape Reality</button>
+                        <button type="submit" class="btn-auth" style="background: linear-gradient(135deg, #b8860b, #ffd700); color: #000; text-shadow: none;">Rewrite Reality</button>
                     </form>
                 </div>
             </div>
@@ -207,6 +205,29 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        // --- SPATIAL STARFIELD LOGIC ---
+        const canvas = document.getElementById('star-canvas');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.onresize = resize; resize();
+
+        class Star {
+            constructor() { this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.z = Math.random() * canvas.width; this.size = 1.2; }
+            update() { this.z -= 1.5; if(this.z <= 0) this.z = canvas.width; }
+            draw() {
+                let sx = (this.x - canvas.width/2) * (canvas.width/this.z) + canvas.width/2;
+                let sy = (this.y - canvas.height/2) * (canvas.width/this.z) + canvas.height/2;
+                let r = (canvas.width / this.z) * this.size;
+                ctx.fillStyle = "rgba(255, 255, 255, " + (1 - this.z/canvas.width) + ")";
+                ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI*2); ctx.fill();
+            }
+        }
+        for(let i=0; i<300; i++) stars.push(new Star());
+        function animate() { ctx.clearRect(0,0,canvas.width, canvas.height); stars.forEach(s => { s.update(); s.draw(); }); requestAnimationFrame(animate); }
+        animate();
+
+        // --- UI LOGIC ---
         function tab(name) {
             document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
             document.querySelectorAll('.nav-link, .mobile-btn').forEach(b => b.classList.remove('active'));
@@ -219,11 +240,11 @@ HTML_TEMPLATE = """
         setInterval(() => {
             const lb = document.getElementById('log-box');
             if(Math.random() > 0.7 && lb) {
-                const logs = ["[ABYSS] Fragmenting memory...", "[KLEIN] Noise filtered.", "[CORE] Crimson stable.", "[NET] Uplink: 12ms"];
+                const logs = ["[ABYSS] Re-routing dark matter packets...", "[KLEIN] Neural synapse firing...", "[SYS] Bypassing celestial firewall...", "[NET] Divine signal stable at 8ms."];
                 lb.innerHTML += `<div>[${new Date().toLocaleTimeString()}] <span class="${Math.random() > 0.5 ? 't-red' : 't-gold'}">${logs[Math.floor(Math.random()*logs.length)]}</span></div>`;
                 lb.scrollTop = lb.scrollHeight;
             }
-        }, 3500);
+        }, 3000);
     </script>
     {% endif %}
 </body>
