@@ -14,7 +14,7 @@ ui_config = {
     "ui_bg": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2048&auto=format&fit=crop"
 }
 
-ADMIN_PASSWORD = "11222333444455555"
+ADMIN_PASSWORD = "admin"
 DEV_PASSWORD = "mr_yaen"
 
 HTML_TEMPLATE = """
